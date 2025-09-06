@@ -3,13 +3,26 @@
 import type { Pitch } from '@/lib/types';
 import { Header } from './header';
 import Image from 'next/image';
-import { Crown, Star } from 'lucide-react';
+import { Crown, Star, ArrowLeft } from 'lucide-react';
+import { Button } from './ui/button';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 interface WinnerDisplayProps {
   pitch: Pitch | null;
 }
 
 export function WinnerDisplay({ pitch }: WinnerDisplayProps) {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    // Check for authentication status from sessionStorage
+    const authStatus = sessionStorage.getItem('isAuthenticated');
+    if (authStatus === 'true') {
+      setIsAdmin(true);
+    }
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
@@ -38,6 +51,16 @@ export function WinnerDisplay({ pitch }: WinnerDisplayProps) {
           </div>
         )}
       </main>
+      {isAdmin && (
+        <div className="absolute top-20 left-4">
+            <Button asChild variant="outline">
+                <Link href="/admin">
+                    <ArrowLeft className="mr-2" />
+                    Back to Dashboard
+                </Link>
+            </Button>
+        </div>
+      )}
     </div>
   );
 }

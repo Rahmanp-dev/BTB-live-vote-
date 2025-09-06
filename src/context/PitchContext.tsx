@@ -1,7 +1,7 @@
 'use client';
 
 import type { Pitch, Category } from '@/lib/types';
-import { createContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useState, useEffect, type ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface LiveState {
@@ -33,6 +33,7 @@ interface PitchContextType {
   goToPreviousPitch: () => void;
   startWinnerShowcase: (categoryId: string) => void;
   endWinnerShowcase: () => void;
+  resetAllRatings: () => Promise<void>;
 }
 
 export const PitchContext = createContext<PitchContextType>({
@@ -57,6 +58,7 @@ export const PitchContext = createContext<PitchContextType>({
   goToPreviousPitch: () => {},
   startWinnerShowcase: () => {},
   endWinnerShowcase: () => {},
+  resetAllRatings: async () => {},
 });
 
 export function PitchProvider({ children }: { children: ReactNode }) {
@@ -69,10 +71,23 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-
-  const fetchData = async () => {
+  const addCategoryAndRefetch = useCallback(async (name: string, shouldFetchData = true) => {
     try {
-      setLoading(true);
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok && shouldFetchData) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to add category:', error);
+    }
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    try {
       const [pitchesRes, categoriesRes, liveStateRes] = await Promise.all([
         fetch('/api/pitches'),
         fetch('/api/categories'),
@@ -93,7 +108,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       if (categoriesData.success) {
         if (categoriesData.data.length === 0) {
             const defaultCategories = ['Web Development', '3D Animation', 'Video Editing', 'VFX'];
-            await Promise.all(defaultCategories.map(name => addCategory(name, false)));
+            // Since this runs on initial load, we don't want a fetch loop.
+            await Promise.all(defaultCategories.map(name => addCategoryAndRefetch(name, false)));
             setCategories(defaultCategories);
         } else {
             setCategories(categoriesData.data.map((c: Category) => c.name));
@@ -110,36 +126,47 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addCategoryAndRefetch]);
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchLiveState, 2000);
-    return () => clearInterval(interval);
-  }, []);
-  
-  const fetchLiveState = async () => {
-    try {
-      const res = await fetch('/api/livestate');
-      const data = await res.json();
-      if (data.success) {
-        const { isLive, currentPitchId, isWinnerShowcaseLive, showcasedCategoryId } = data.data;
-        setIsLiveMode(isLive);
-        setCurrentPitchId(currentPitchId);
+  }, [fetchData]);
 
-        if (isWinnerShowcaseLive && !window.location.pathname.startsWith('/showcase')) {
-            router.push('/showcase');
-        } else if (!isWinnerShowcaseLive && window.location.pathname.startsWith('/showcase')) {
-            router.push('/');
+  useEffect(() => {
+    const fetchLiveState = async () => {
+      try {
+        const res = await fetch('/api/livestate');
+        const data = await res.json();
+        if (data.success) {
+          const { isLive, currentPitchId, isWinnerShowcaseLive, showcasedCategoryId } = data.data;
+
+          // Only update state if it has changed to prevent unnecessary re-renders
+          setIsLiveMode(prev => prev !== isLive ? isLive : prev);
+          setCurrentPitchId(prev => prev !== currentPitchId ? currentPitchId : prev);
+          
+          if(isWinnerShowcaseLive !== isWinnerShowcaseLive) {
+            setIsWinnerShowcaseLive(isWinnerShowcaseLive);
+          }
+          if(showcasedCategoryId !== showcasedCategoryId) {
+            setShowcasedCategoryId(showcasedCategoryId);
+          }
+
+          if (isWinnerShowcaseLive && !window.location.pathname.startsWith('/showcase')) {
+              router.push('/showcase');
+          } else if (!isWinnerShowcaseLive && window.location.pathname.startsWith('/showcase')) {
+              router.push('/');
+          }
         }
-        setIsWinnerShowcaseLive(isWinnerShowcaseLive);
-        setShowcasedCategoryId(showcasedCategoryId);
+      } catch (error) {
+        console.error("Failed to fetch live state:", error);
       }
-    } catch (error) {
-      console.error("Failed to fetch live state:", error);
-    }
-  };
-
+    };
+    
+    // Optimized polling interval
+    const interval = setInterval(fetchLiveState, 5000);
+    return () => clearInterval(interval);
+  }, [isWinnerShowcaseLive, showcasedCategoryId, router]);
+  
   const updateLiveState = async (state: Partial<LiveState>) => {
     try {
       const res = await fetch('/api/livestate', {
@@ -179,7 +206,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch(`/api/pitches/${pitchId}`, { method: 'DELETE' });
       if (res.ok) {
-        await fetchData();
+        setPitches(prev => prev.filter(p => p._id !== pitchId));
       }
     } catch (error) {
       console.error('Failed to remove pitch:', error);
@@ -194,7 +221,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ visible }),
       });
       if (res.ok) {
-        await fetchData();
+         setPitches(prev => prev.map(p => p._id === pitchId ? { ...p, visible } : p));
       }
     } catch (error) {
       console.error('Failed to toggle visibility:', error);
@@ -206,17 +233,22 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     if (!pitch) return;
 
     const newRatings = [...pitch.ratings, newRating];
+    
+    // Optimistic UI update
+    const newAverage = newRatings.reduce((a, b) => a + b, 0) / newRatings.length;
+    setPitches(prev => prev.map(p => p._id === pitchId ? { ...p, ratings: newRatings, rating: newAverage } : p));
+
     try {
-      const res = await fetch(`/api/pitches/${pitchId}`, {
+      await fetch(`/api/pitches/${pitchId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ratings: newRatings }),
       });
-      if (res.ok) {
-        await fetchData();
-      }
+      // No need to refetch data here as we updated optimistically
     } catch (error) {
       console.error('Failed to update rating:', error);
+      // If the API call fails, revert the state
+      setPitches(prev => prev.map(p => p._id === pitchId ? pitch : p));
     }
   };
 
@@ -224,21 +256,6 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     const categoryPitches = pitches.filter((p) => p.category === category && p.ratings.length > 0);
     if (categoryPitches.length === 0) return null;
     return categoryPitches.sort((a, b) => b.rating - a.rating)[0];
-  };
-
-  const addCategory = async (name: string, shouldFetchData = true) => {
-    try {
-      const res = await fetch('/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      if (res.ok && shouldFetchData) {
-        await fetchData();
-      }
-    } catch (error) {
-      console.error('Failed to add category:', error);
-    }
   };
 
   const removeCategory = async (name: string) => {
@@ -306,6 +323,20 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     updateLiveState({ isWinnerShowcaseLive: false, showcasedCategoryId: null });
   };
 
+  const resetAllRatings = async () => {
+    try {
+      const res = await fetch('/api/pitches/reset', { method: 'POST' });
+      if (res.ok) {
+        await fetchData();
+      } else {
+        const { error } = await res.json();
+        alert(`Failed to reset ratings: ${error}`);
+      }
+    } catch (error) {
+      console.error('Failed to reset ratings:', error);
+    }
+  };
+
   const showcasedPitch = getWinnerForCategory(showcasedCategoryId || '');
 
 
@@ -323,7 +354,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     togglePitchVisibility,
     updatePitchRating,
     getWinnerForCategory,
-    addCategory,
+    addCategory: addCategoryAndRefetch,
     removeCategory,
     startLiveMode,
     endLiveMode,
@@ -331,6 +362,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     goToPreviousPitch,
     startWinnerShowcase,
     endWinnerShowcase,
+    resetAllRatings,
   };
 
   return (
