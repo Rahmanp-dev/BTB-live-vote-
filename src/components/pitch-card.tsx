@@ -12,8 +12,10 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Star } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { RatingDialog } from './rating-dialog';
+import { PitchContext } from '@/context/PitchContext';
+import { Badge } from './ui/badge';
 
 interface PitchCardProps {
   pitch: Pitch;
@@ -21,11 +23,11 @@ interface PitchCardProps {
 
 export function PitchCard({ pitch }: PitchCardProps) {
   const [isRating, setIsRating] = useState(false);
+  const { updatePitchRating } = useContext(PitchContext);
 
   const handleRatingSubmit = (rating: number) => {
+    updatePitchRating(pitch.id, rating);
     console.log(`Rating for ${pitch.title}: ${rating}`);
-    // Here you would typically handle the rating submission,
-    // e.g., send it to a server.
   };
 
   return (
@@ -41,7 +43,10 @@ export function PitchCard({ pitch }: PitchCardProps) {
               data-ai-hint="product photo"
             />
           </div>
-          <CardTitle>{pitch.title}</CardTitle>
+          <div className='flex justify-between items-start'>
+            <CardTitle>{pitch.title}</CardTitle>
+            <Badge variant="outline">{pitch.category}</Badge>
+          </div>
           <CardDescription>Presented by {pitch.presenter}</CardDescription>
         </CardHeader>
         <CardContent className="flex-1">

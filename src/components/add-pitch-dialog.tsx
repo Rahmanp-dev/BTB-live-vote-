@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,40 +14,65 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { Pitch } from '@/lib/types';
+import { PitchContext } from '@/context/PitchContext';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 
 interface AddPitchDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (pitch: Omit<Pitch, 'id' | 'rating' | 'visible'>) => void;
 }
 
-export function AddPitchDialog({
-  isOpen,
-  onClose,
-  onSubmit,
-}: AddPitchDialogProps) {
+export function AddPitchDialog({ isOpen, onClose }: AddPitchDialogProps) {
+  const { categories, addPitch } = useContext(PitchContext);
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [presenter, setPresenter] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [category, setCategory] = useState('');
+  const [error, setError] = useState('');
+
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setPresenter('');
+    setImageUrl('');
+    setCategory('');
+    setError('');
+  };
 
   const handleSubmit = () => {
-    if (title && description && presenter && imageUrl) {
-      onSubmit({ title, description, presenter, imageUrl });
-      onClose();
-      // Reset fields
-      setTitle('');
-      setDescription('');
-      setPresenter('');
-      setImageUrl('');
-    } else {
-      // Basic validation feedback
-      alert('Please fill out all fields.');
+    if (!title || !description || !presenter || !imageUrl || !category) {
+      setError('Please fill out all fields.');
+      return;
     }
+
+    const newPitch: Omit<Pitch, 'id' | 'rating' | 'visible'> = {
+      title,
+      description,
+      presenter,
+      imageUrl,
+      category,
+    };
+
+    addPitch(newPitch);
+    onClose();
+    resetForm();
+  };
+
+  const handleDialogClose = () => {
+    onClose();
+    resetForm();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New Pitch</DialogTitle>
@@ -79,6 +104,23 @@ export function AddPitchDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="category" className="text-right">
+              Category
+            </Label>
+            <Select onValueChange={setCategory} value={category}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="imageUrl" className="text-right">
               Image URL
             </Label>
@@ -101,9 +143,14 @@ export function AddPitchDialog({
               className="col-span-3"
             />
           </div>
+          {error && (
+            <p className="col-span-4 text-center text-sm text-destructive">
+              {error}
+            </p>
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleDialogClose}>
             Cancel
           </Button>
           <Button onClick={handleSubmit}>Add Pitch</Button>

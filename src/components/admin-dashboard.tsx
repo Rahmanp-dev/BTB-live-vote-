@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import {
   Table,
   TableHeader,
@@ -33,111 +33,129 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
+import { PitchContext } from '@/context/PitchContext';
+import { CategoryManager } from './category-manager';
+import { Separator } from './ui/separator';
 
-interface AdminDashboardProps {
-  pitches: Pitch[];
-}
-
-export function AdminDashboard({ pitches: initialPitches }: AdminDashboardProps) {
-  const [pitches, setPitches] = useState<Pitch[]>(initialPitches);
+export function AdminDashboard() {
+  const {
+    pitches,
+    removePitch,
+    togglePitchVisibility,
+    getWinnerForCategory,
+  } = useContext(PitchContext);
   const [isAddPitchOpen, setIsAddPitchOpen] = useState(false);
   const [pitchToDelete, setPitchToDelete] = useState<Pitch | null>(null);
 
-  const handleAddPitch = (newPitch: Omit<Pitch, 'id' | 'rating' | 'visible'>) => {
-    setPitches((prevPitches) => [
-      ...prevPitches,
-      {
-        ...newPitch,
-        id: (prevPitches[prevPitches.length - 1]?.id ?? 0) + 1,
-        rating: 0,
-        visible: true,
-      },
-    ]);
-  };
+  const pitchesByCategory = pitches.reduce((acc, pitch) => {
+    if (!acc[pitch.category]) {
+      acc[pitch.category] = [];
+    }
+    acc[pitch.category].push(pitch);
+    return acc;
+  }, {} as Record<string, Pitch[]>);
 
-  const handleRemovePitch = (pitchId: number) => {
-    setPitches((prevPitches) => prevPitches.filter((p) => p.id !== pitchId));
-    setPitchToDelete(null);
-  };
-
-  const handleVisibilityChange = (pitchId: number, isVisible: boolean) => {
-    setPitches((prevPitches) =>
-      prevPitches.map((p) =>
-        p.id === pitchId ? { ...p, visible: isVisible } : p
-      )
-    );
-  };
-
-  const sortedPitches = [...pitches].sort((a, b) => b.rating - a.rating);
-  const winner = sortedPitches.length > 0 ? sortedPitches[0] : null;
+  const sortedCategories = Object.keys(pitchesByCategory).sort();
 
   return (
     <>
       <AdminLayout>
         <div className="p-4 sm:p-6 md:p-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold">Pitch Results</h2>
+            <h2 className="text-3xl font-bold">Admin Dashboard</h2>
             <Button onClick={() => setIsAddPitchOpen(true)}>Add New Pitch</Button>
           </div>
+
+          <CategoryManager />
+
+          <Separator className="my-8" />
+
           <Card>
             <CardHeader>
               <CardTitle>Pitch Management</CardTitle>
               <CardDescription>
-                An overview of all submitted pitches. Use the controls to manage visibility and remove pitches.
+                An overview of all submitted pitches, grouped by category.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Pitch Title</TableHead>
-                    <TableHead>Presenter</TableHead>
-                    <TableHead className="text-center">Visible</TableHead>
-                    <TableHead className="text-right">Rating</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedPitches.map((pitch) => (
-                    <TableRow
-                      key={pitch.id}
-                      className={
-                        pitch.id === winner?.id ? 'bg-accent/50' : ''
-                      }
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {pitch.title}
-                          {pitch.id === winner?.id && (
-                            <Crown className="h-5 w-5 text-yellow-500" />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{pitch.presenter}</TableCell>
-                      <TableCell className="text-center">
-                        <Switch
-                          checked={pitch.visible}
-                          onCheckedChange={(checked) => handleVisibilityChange(pitch.id, checked)}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary" className="text-base">
-                          {pitch.rating.toFixed(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setPitchToDelete(pitch)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {sortedCategories.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  No pitches have been added yet.
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {sortedCategories.map((category) => {
+                    const winner = getWinnerForCategory(category);
+                    const sortedPitches = pitchesByCategory[category].sort(
+                      (a, b) => b.rating - a.rating
+                    );
+
+                    return (
+                      <div key={category}>
+                        <h3 className="text-xl font-semibold mb-4">{category}</h3>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Pitch Title</TableHead>
+                              <TableHead>Presenter</TableHead>
+                              <TableHead className="text-center">Visible</TableHead>
+                              <TableHead className="text-right">Rating</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {sortedPitches.map((pitch) => (
+                              <TableRow
+                                key={pitch.id}
+                                className={
+                                  pitch.id === winner?.id
+                                    ? 'bg-accent/50'
+                                    : ''
+                                }
+                              >
+                                <TableCell className="font-medium">
+                                  <div className="flex items-center gap-2">
+                                    {pitch.title}
+                                    {pitch.id === winner?.id && (
+                                      <Crown className="h-5 w-5 text-yellow-500" />
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>{pitch.presenter}</TableCell>
+                                <TableCell className="text-center">
+                                  <Switch
+                                    checked={pitch.visible}
+                                    onCheckedChange={(checked) =>
+                                      togglePitchVisibility(pitch.id, checked)
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-base"
+                                  >
+                                    {pitch.rating.toFixed(1)}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setPitchToDelete(pitch)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -146,7 +164,6 @@ export function AdminDashboard({ pitches: initialPitches }: AdminDashboardProps)
       <AddPitchDialog
         isOpen={isAddPitchOpen}
         onClose={() => setIsAddPitchOpen(false)}
-        onSubmit={handleAddPitch}
       />
 
       <AlertDialog
@@ -163,7 +180,12 @@ export function AdminDashboard({ pitches: initialPitches }: AdminDashboardProps)
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPitchToDelete(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => handleRemovePitch(pitchToDelete!.id)}
+              onClick={() => {
+                if (pitchToDelete) {
+                  removePitch(pitchToDelete.id);
+                  setPitchToDelete(null);
+                }
+              }}
               className="bg-destructive hover:bg-destructive/90"
             >
               Delete

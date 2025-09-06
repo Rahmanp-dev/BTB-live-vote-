@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { PitchProvider } from '@/context/PitchContext';
 
 export const metadata: Metadata = {
   title: 'Behind The Build',
@@ -25,7 +26,9 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased">{children}</body>
+      <body className="font-body antialiased">
+        <PitchProvider>{children}</PitchProvider>
+      </body>
     </html>
   );
 }
