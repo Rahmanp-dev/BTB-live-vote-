@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Pitch, Category } from '@/lib/types';
@@ -122,7 +123,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         setShowcasedCategoryId(liveStateData.data.showcasedCategoryId);
       }
     } catch (error) {
-      console.error("Failed to fetch data:", error);
+      console.error("Failed to fetch initial data:", error);
     } finally {
       setLoading(false);
     }
@@ -136,20 +137,26 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     const fetchLiveState = async () => {
       try {
         const res = await fetch('/api/livestate');
-        const data = await res.json();
+        if (!res.ok) {
+            console.error(`Failed to fetch live state: ${res.status}`);
+            return;
+        }
+
+        let data;
+        try {
+            data = await res.json();
+        } catch (e) {
+            console.error("Failed to parse live state JSON:", e);
+            return;
+        }
+        
         if (data.success) {
           const { isLive, currentPitchId, isWinnerShowcaseLive, showcasedCategoryId } = data.data;
 
-          // Only update state if it has changed to prevent unnecessary re-renders
           setIsLiveMode(prev => prev !== isLive ? isLive : prev);
           setCurrentPitchId(prev => prev !== currentPitchId ? currentPitchId : prev);
-          
-          if(isWinnerShowcaseLive !== isWinnerShowcaseLive) {
-            setIsWinnerShowcaseLive(isWinnerShowcaseLive);
-          }
-          if(showcasedCategoryId !== showcasedCategoryId) {
-            setShowcasedCategoryId(showcasedCategoryId);
-          }
+          setIsWinnerShowcaseLive(prev => prev !== isWinnerShowcaseLive ? isWinnerShowcaseLive : prev);
+          setShowcasedCategoryId(prev => prev !== showcasedCategoryId ? showcasedCategoryId : prev);
 
           if (isWinnerShowcaseLive && !window.location.pathname.startsWith('/showcase')) {
               router.push('/showcase');
@@ -162,10 +169,9 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       }
     };
     
-    // Optimized polling interval
-    const interval = setInterval(fetchLiveState, 5000);
+    const interval = setInterval(fetchLiveState, 3000); // Poll every 3 seconds
     return () => clearInterval(interval);
-  }, [isWinnerShowcaseLive, showcasedCategoryId, router]);
+  }, [router]);
   
   const updateLiveState = async (state: Partial<LiveState>) => {
     try {
