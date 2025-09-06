@@ -2,6 +2,7 @@
 
 ## Core Features:
 
+
 - Admin Event Creation: Admin creates an event with a slug, name, and description for audience access at /e/[slug].
 - Presenter Management: Admin adds and manages presenters, including their names, product descriptions, and categories.
 - Voting Mode Selection: Admin chooses between 'Free voting' and 'Stage mode' to control when presenters can be voted on.

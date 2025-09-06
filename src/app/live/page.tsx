@@ -5,6 +5,8 @@ import { LivePitchView } from '@/components/live-pitch-view';
 import { PitchContext } from '@/context/PitchContext';
 import { useRouter } from 'next/navigation';
 
+
+
 export default function LivePage() {
   const { pitches, currentPitchId, isLiveMode, loading } = useContext(PitchContext);
   const router = useRouter();
@@ -15,6 +17,7 @@ export default function LivePage() {
     }
   }, [loading, isLiveMode, router]);
 
+  
   const currentPitch = pitches.find((p) => p._id === currentPitchId);
 
   if (loading || !isLiveMode) {
