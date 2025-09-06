@@ -8,10 +8,10 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { PitchContext } from '@/context/PitchContext';
-import { Badge } from './ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 
 export function CategoryManager() {

@@ -14,9 +14,9 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { LayoutDashboard, LogOut } from 'lucide-react';
-import { Logo } from './logo';
+import { Logo } from '@/components/logo';
 import { useRouter } from 'next/navigation';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
