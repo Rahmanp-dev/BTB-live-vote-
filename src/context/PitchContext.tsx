@@ -101,7 +101,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       if (pitchesData.success) {
         const pitchesWithAvgRating = pitchesData.data.map((p: Pitch) => ({
           ...p,
-          rating: p.ratings.length > 0 ? p.ratings.reduce((a, b) => a + b, 0) / p.ratings.length : 0,
+          rating: p.ratings && p.ratings.length > 0 ? p.ratings.reduce((a, b) => a + b, 0) / p.ratings.length : 0,
         }));
         setPitches(pitchesWithAvgRating);
       }
