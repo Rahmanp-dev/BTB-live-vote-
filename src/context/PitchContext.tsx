@@ -3,7 +3,7 @@
 
 import type { Pitch, Category } from '@/lib/types';
 import { createContext, useState, useEffect, type ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface LiveState {
   isLive: boolean;
@@ -71,6 +71,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   const [showcasedCategoryId, setShowcasedCategoryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   const addCategoryAndRefetch = useCallback(async (name: string, shouldFetchData = true) => {
     try {
@@ -157,10 +158,12 @@ export function PitchProvider({ children }: { children: ReactNode }) {
           setCurrentPitchId(prev => prev !== currentPitchId ? currentPitchId : prev);
           setIsWinnerShowcaseLive(prev => prev !== isWinnerShowcaseLive ? isWinnerShowcaseLive : prev);
           setShowcasedCategoryId(prev => prev !== showcasedCategoryId ? showcasedCategoryId : prev);
+          
+          const isAdminPage = pathname.startsWith('/admin') || pathname.startsWith('/presenter') || pathname.startsWith('/login');
 
-          if (isWinnerShowcaseLive && !window.location.pathname.startsWith('/showcase')) {
+          if (isWinnerShowcaseLive && !pathname.startsWith('/showcase') && !isAdminPage) {
               router.push('/showcase');
-          } else if (!isWinnerShowcaseLive && window.location.pathname.startsWith('/showcase')) {
+          } else if (!isWinnerShowcaseLive && pathname.startsWith('/showcase')) {
               router.push('/');
           }
         }
@@ -171,7 +174,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     
     const interval = setInterval(fetchLiveState, 3000); // Poll every 3 seconds
     return () => clearInterval(interval);
-  }, [router]);
+  }, [router, pathname]);
   
   const updateLiveState = async (state: Partial<LiveState>) => {
     try {
