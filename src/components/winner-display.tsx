@@ -1,10 +1,10 @@
 'use client';
 
 import type { Pitch } from '@/lib/types';
-import { Header } from './header';
+import { Header } from '@/components/header';
 import Image from 'next/image';
 import { Crown, Star, ArrowLeft } from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 

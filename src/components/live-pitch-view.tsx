@@ -1,14 +1,14 @@
 'use client';
 
 import type { Pitch } from '@/lib/types';
-import { Header } from './header';
+import { Header } from '@/components/header';
 import Image from 'next/image';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 import { Star } from 'lucide-react';
 import { useState, useContext } from 'react';
-import { RatingDialog } from './rating-dialog';
+import { RatingDialog } from '@/components/rating-dialog';
 import { PitchContext } from '@/context/PitchContext';
-import { Badge } from './ui/badge';
+import { Badge } from '@/components/ui/badge';
 
 interface LivePitchViewProps {
   pitch: Pitch | undefined;
