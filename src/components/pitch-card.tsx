@@ -29,13 +29,18 @@ export function PitchCard({ pitch }: PitchCardProps) {
     updatePitchRating(pitch._id, rating);
   };
 
+  // Check for a valid image URL. If it's HTML, use a placeholder.
+  const imageUrl = pitch.imageUrl && pitch.imageUrl.startsWith('http') 
+    ? pitch.imageUrl 
+    : 'https://picsum.photos/600/400';
+
   return (
     <>
       <Card className="flex flex-col">
         <CardHeader>
           <div className="aspect-video relative overflow-hidden rounded-t-lg -mt-6 -mx-6 mb-4">
             <Image
-              src={pitch.imageUrl}
+              src={imageUrl}
               alt={pitch.title}
               fill
               className="object-cover"

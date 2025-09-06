@@ -24,6 +24,12 @@ export function LivePitchView({ pitch }: LivePitchViewProps) {
     }
   };
 
+  // Check for a valid image URL. If it's HTML or missing, use a placeholder.
+  const imageUrl = pitch?.imageUrl && pitch.imageUrl.startsWith('http') 
+    ? pitch.imageUrl 
+    : 'https://picsum.photos/600/400';
+
+
   return (
     <>
       <div className="flex flex-col min-h-screen bg-background">
@@ -38,7 +44,7 @@ export function LivePitchView({ pitch }: LivePitchViewProps) {
             <div className="container max-w-4xl mx-auto grid md:grid-cols-2 gap-8 items-center">
               <div className="aspect-video relative rounded-lg overflow-hidden">
                 <Image
-                  src={pitch.imageUrl}
+                  src={imageUrl}
                   alt={pitch.title}
                   fill
                   className="object-cover"
