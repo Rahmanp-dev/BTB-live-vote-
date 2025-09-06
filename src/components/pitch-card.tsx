@@ -26,8 +26,7 @@ export function PitchCard({ pitch }: PitchCardProps) {
   const { updatePitchRating } = useContext(PitchContext);
 
   const handleRatingSubmit = (rating: number) => {
-    updatePitchRating(pitch.id, rating);
-    console.log(`Rating for ${pitch.title}: ${rating}`);
+    updatePitchRating(pitch._id, rating);
   };
 
   return (

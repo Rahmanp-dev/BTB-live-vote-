@@ -47,13 +47,13 @@ export function AddPitchDialog({ isOpen, onClose }: AddPitchDialogProps) {
     setError('');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title || !description || !presenter || !imageUrl || !category) {
       setError('Please fill out all fields.');
       return;
     }
 
-    const newPitch: Omit<Pitch, 'id' | 'rating' | 'visible'> = {
+    const newPitch: Omit<Pitch, '_id' | 'rating' | 'visible' | 'ratings'> = {
       title,
       description,
       presenter,
@@ -61,7 +61,7 @@ export function AddPitchDialog({ isOpen, onClose }: AddPitchDialogProps) {
       category,
     };
 
-    addPitch(newPitch);
+    await addPitch(newPitch);
     onClose();
     resetForm();
   };

@@ -37,6 +37,7 @@ import { PitchContext } from '@/context/PitchContext';
 import { CategoryManager } from './category-manager';
 import { Separator } from './ui/separator';
 import { LiveModePanel } from './live-mode-panel';
+import { Skeleton } from './ui/skeleton';
 
 export function AdminDashboard() {
   const {
@@ -46,9 +47,22 @@ export function AdminDashboard() {
     getWinnerForCategory,
     isLiveMode,
     toggleLiveMode,
+    loading,
   } = useContext(PitchContext);
   const [isAddPitchOpen, setIsAddPitchOpen] = useState(false);
   const [pitchToDelete, setPitchToDelete] = useState<Pitch | null>(null);
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="p-4 sm:p-6 md:p-8 space-y-8">
+          <Skeleton className="h-10 w-1/3" />
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   const pitchesByCategory = pitches.reduce((acc, pitch) => {
     if (!acc[pitch.category]) {
@@ -100,7 +114,7 @@ export function AdminDashboard() {
             <CardContent>
               {sortedCategories.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
-                  No pitches have been added yet.
+                  No pitches have been added yet. Click "Add New Pitch" to get started.
                 </div>
               ) : (
                 <div className="space-y-8">
@@ -126,9 +140,9 @@ export function AdminDashboard() {
                           <TableBody>
                             {sortedPitches.map((pitch) => (
                               <TableRow
-                                key={pitch.id}
+                                key={pitch._id}
                                 className={
-                                  pitch.id === winner?.id
+                                  pitch._id === winner?._id
                                     ? 'bg-accent/50'
                                     : ''
                                 }
@@ -136,7 +150,7 @@ export function AdminDashboard() {
                                 <TableCell className="font-medium">
                                   <div className="flex items-center gap-2">
                                     {pitch.title}
-                                    {pitch.id === winner?.id && (
+                                    {pitch._id === winner?._id && (
                                       <Crown className="h-5 w-5 text-yellow-500" />
                                     )}
                                   </div>
@@ -146,7 +160,7 @@ export function AdminDashboard() {
                                   <Switch
                                     checked={pitch.visible}
                                     onCheckedChange={(checked) =>
-                                      togglePitchVisibility(pitch.id, checked)
+                                      togglePitchVisibility(pitch._id, checked)
                                     }
                                   />
                                 </TableCell>
@@ -202,7 +216,7 @@ export function AdminDashboard() {
             <AlertDialogAction
               onClick={() => {
                 if (pitchToDelete) {
-                  removePitch(pitchToDelete.id);
+                  removePitch(pitchToDelete._id);
                   setPitchToDelete(null);
                 }
               }}

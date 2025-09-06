@@ -26,8 +26,6 @@ export function LiveModePanel() {
     return acc;
   }, {} as Record<string, typeof pitches>);
 
-  const currentPitch = visiblePitches.find(p => p.id === currentPitchId);
-
   return (
     <Card className="bg-primary/5 border-primary/20">
       <CardHeader>
@@ -59,9 +57,9 @@ export function LiveModePanel() {
                 <div className="flex flex-wrap gap-2">
                   {categoryPitches.map(pitch => (
                     <Button
-                      key={pitch.id}
-                      variant={pitch.id === currentPitchId ? 'default' : 'secondary'}
-                      onClick={() => setCurrentPitch(pitch.id)}
+                      key={pitch._id}
+                      variant={pitch._id === currentPitchId ? 'default' : 'secondary'}
+                      onClick={() => setCurrentPitch(pitch._id)}
                     >
                       {pitch.title}
                     </Button>

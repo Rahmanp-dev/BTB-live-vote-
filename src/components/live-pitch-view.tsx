@@ -20,7 +20,7 @@ export function LivePitchView({ pitch }: LivePitchViewProps) {
 
   const handleRatingSubmit = (rating: number) => {
     if (pitch) {
-      updatePitchRating(pitch.id, rating);
+      updatePitchRating(pitch._id, rating);
     }
   };
 

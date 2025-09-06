@@ -1,22 +1,23 @@
 'use client';
 
-import type { Pitch } from '@/lib/types';
-import { createContext, useState, type ReactNode } from 'react';
+import type { Pitch, Category } from '@/lib/types';
+import { createContext, useState, useEffect, type ReactNode } from 'react';
 
 interface PitchContextType {
   pitches: Pitch[];
   categories: string[];
   isLiveMode: boolean;
-  currentPitchId: number | null;
-  addPitch: (pitch: Omit<Pitch, 'id' | 'rating' | 'visible' | 'ratings'>) => void;
-  removePitch: (pitchId: number) => void;
-  togglePitchVisibility: (pitchId: number, isVisible: boolean) => void;
-  updatePitchRating: (pitchId: number, newRating: number) => void;
+  currentPitchId: string | null;
+  loading: boolean;
+  addPitch: (pitch: Omit<Pitch, '_id' | 'rating' | 'visible' | 'ratings'>) => Promise<void>;
+  removePitch: (pitchId: string) => Promise<void>;
+  togglePitchVisibility: (pitchId: string, isVisible: boolean) => Promise<void>;
+  updatePitchRating: (pitchId: string, newRating: number) => Promise<void>;
   getWinnerForCategory: (category: string) => Pitch | null;
-  addCategory: (category: string) => void;
-  removeCategory: (category: string) => void;
+  addCategory: (category: string) => Promise<void>;
+  removeCategory: (category: string) => Promise<void>;
   toggleLiveMode: () => void;
-  setCurrentPitch: (pitchId: number | null) => void;
+  setCurrentPitch: (pitchId: string | null) => void;
   goToNextPitch: () => void;
   goToPreviousPitch: () => void;
 }
@@ -26,146 +27,209 @@ export const PitchContext = createContext<PitchContextType>({
   categories: [],
   isLiveMode: false,
   currentPitchId: null,
-  addPitch: () => {},
-  removePitch: () => {},
-  togglePitchVisibility: () => {},
-  updatePitchRating: () => {},
+  loading: true,
+  addPitch: async () => {},
+  removePitch: async () => {},
+  togglePitchVisibility: async () => {},
+  updatePitchRating: async () => {},
   getWinnerForCategory: () => null,
-  addCategory: () => {},
-  removeCategory: () => {},
+  addCategory: async () => {},
+  removeCategory: async () => {},
   toggleLiveMode: () => {},
   setCurrentPitch: () => {},
   goToNextPitch: () => {},
   goToPreviousPitch: () => {},
 });
 
-const defaultCategories = [
-  'Web Development',
-  '3D Animation',
-  'Video Editing',
-  'VFX',
-];
-
 export function PitchProvider({ children }: { children: ReactNode }) {
   const [pitches, setPitches] = useState<Pitch[]>([]);
-  const [categories, setCategories] = useState<string[]>(defaultCategories);
+  const [categories, setCategories] = useState<string[]>([]);
   const [isLiveMode, setIsLiveMode] = useState(false);
-  const [currentPitchId, setCurrentPitchId] = useState<number | null>(null);
+  const [currentPitchId, setCurrentPitchId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const addPitch = (
-    newPitch: Omit<Pitch, 'id' | 'rating' | 'visible' | 'ratings'>
-  ) => {
-    setPitches((prevPitches) => [
-      ...prevPitches,
-      {
-        ...newPitch,
-        id: (prevPitches[prevPitches.length - 1]?.id ?? 0) + 1,
-        rating: 0,
-        ratings: [],
-        visible: true,
-      },
-    ]);
-  };
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [pitchesRes, categoriesRes] = await Promise.all([
+        fetch('/api/pitches'),
+        fetch('/api/categories'),
+      ]);
 
-  const removePitch = (pitchId: number) => {
-    setPitches((prevPitches) => prevPitches.filter((p) => p.id !== pitchId));
-  };
+      const pitchesData = await pitchesRes.json();
+      const categoriesData = await categoriesRes.json();
 
-  const togglePitchVisibility = (pitchId: number, isVisible: boolean) => {
-    setPitches((prevPitches) =>
-      prevPitches.map((p) =>
-        p.id === pitchId ? { ...p, visible: isVisible } : p
-      )
-    );
-  };
-
-  const updatePitchRating = (pitchId: number, newRating: number) => {
-    setPitches((prevPitches) =>
-      prevPitches.map((p) => {
-        if (p.id === pitchId) {
-          const newRatings = [...p.ratings, newRating];
-          const newAverage =
-            newRatings.reduce((a, b) => a + b, 0) / newRatings.length;
-          return { ...p, ratings: newRatings, rating: newAverage };
+      if (pitchesData.success) {
+        const pitchesWithAvgRating = pitchesData.data.map((p: Pitch) => ({
+          ...p,
+          rating: p.ratings.length > 0 ? p.ratings.reduce((a, b) => a + b, 0) / p.ratings.length : 0,
+        }));
+        setPitches(pitchesWithAvgRating);
+      }
+      if (categoriesData.success) {
+        // If no categories, add default ones
+        if (categoriesData.data.length === 0) {
+            const defaultCategories = ['Web Development', '3D Animation', 'Video Editing', 'VFX'];
+            await Promise.all(defaultCategories.map(name => addCategory(name, false)));
+            setCategories(defaultCategories);
+        } else {
+            setCategories(categoriesData.data.map((c: Category) => c.name));
         }
-        return p;
-      })
-    );
+      }
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const addPitch = async (newPitch: Omit<Pitch, '_id' | 'rating' | 'visible' | 'ratings'>) => {
+    try {
+      const res = await fetch('/api/pitches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newPitch, ratings: [], visible: true }),
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to add pitch:', error);
+    }
+  };
+
+  const removePitch = async (pitchId: string) => {
+    try {
+      const res = await fetch(`/api/pitches/${pitchId}`, { method: 'DELETE' });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to remove pitch:', error);
+    }
+  };
+
+  const togglePitchVisibility = async (pitchId: string, visible: boolean) => {
+    try {
+      const res = await fetch(`/api/pitches/${pitchId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visible }),
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to toggle visibility:', error);
+    }
+  };
+
+  const updatePitchRating = async (pitchId: string, newRating: number) => {
+    const pitch = pitches.find(p => p._id === pitchId);
+    if (!pitch) return;
+
+    const newRatings = [...pitch.ratings, newRating];
+    try {
+      const res = await fetch(`/api/pitches/${pitchId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ratings: newRatings }),
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to update rating:', error);
+    }
   };
 
   const getWinnerForCategory = (category: string): Pitch | null => {
     const categoryPitches = pitches.filter((p) => p.category === category);
-    if (categoryPitches.length === 0) {
-      return null;
-    }
+    if (categoryPitches.length === 0) return null;
     return categoryPitches.sort((a, b) => b.rating - a.rating)[0];
   };
 
-  const addCategory = (category: string) => {
-    setCategories((prevCategories) => [...prevCategories, category]);
+  const addCategory = async (name: string, shouldFetchData = true) => {
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok && shouldFetchData) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to add category:', error);
+    }
   };
 
-  const removeCategory = (categoryToRemove: string) => {
-    setCategories((prevCategories) =>
-      prevCategories.filter((c) => c !== categoryToRemove)
-    );
+  const removeCategory = async (name: string) => {
+    try {
+      const res = await fetch(`/api/categories/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      if (res.ok) {
+        await fetchData();
+      } else {
+        const { error } = await res.json();
+        alert(`Failed to delete category: ${error}`);
+      }
+    } catch (error) {
+      console.error('Failed to remove category:', error);
+    }
   };
 
   const toggleLiveMode = () => {
     setIsLiveMode(prev => {
-      if (!prev) { // If turning live mode ON
+      if (!prev) {
         const sortedPitches = getSortedPitches();
-        if (sortedPitches.length > 0) {
-          setCurrentPitchId(sortedPitches[0].id);
-        } else {
-          setCurrentPitchId(null);
-        }
-      } else { // If turning live mode OFF
+        setCurrentPitchId(sortedPitches.length > 0 ? sortedPitches[0]._id : null);
+      } else {
         setCurrentPitchId(null);
       }
       return !prev;
     });
   };
-
-  const setCurrentPitch = (pitchId: number | null) => {
+  
+  const setCurrentPitch = (pitchId: string | null) => {
     setCurrentPitchId(pitchId);
   };
-  
+
   const getSortedPitches = () => {
     return pitches
       .filter(p => p.visible)
       .sort((a, b) => {
         const catA = categories.indexOf(a.category);
         const catB = categories.indexOf(b.category);
-        if (catA !== catB) {
-          return catA - catB;
-        }
-        return a.id - b.id; // Fallback sort by ID
+        return catA !== catB ? catA - catB : a._id.localeCompare(b._id);
       });
   };
 
   const goToNextPitch = () => {
     const sortedPitches = getSortedPitches();
-    const currentIndex = sortedPitches.findIndex(p => p.id === currentPitchId);
+    const currentIndex = sortedPitches.findIndex(p => p._id === currentPitchId);
     if (currentIndex > -1 && currentIndex < sortedPitches.length - 1) {
-      setCurrentPitchId(sortedPitches[currentIndex + 1].id);
+      setCurrentPitchId(sortedPitches[currentIndex + 1]._id);
     }
   };
 
   const goToPreviousPitch = () => {
     const sortedPitches = getSortedPitches();
-    const currentIndex = sortedPitches.findIndex(p => p.id === currentPitchId);
+    const currentIndex = sortedPitches.findIndex(p => p._id === currentPitchId);
     if (currentIndex > 0) {
-      setCurrentPitchId(sortedPitches[currentIndex - 1].id);
+      setCurrentPitchId(sortedPitches[currentIndex - 1]._id);
     }
   };
-
 
   const value = {
     pitches,
     categories,
     isLiveMode,
     currentPitchId,
+    loading,
     addPitch,
     removePitch,
     togglePitchVisibility,

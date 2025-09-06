@@ -19,7 +19,7 @@ export function CategoryManager() {
   const [newCategory, setNewCategory] = useState('');
   const [error, setError] = useState('');
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (newCategory.trim() === '') {
       setError('Category name cannot be empty.');
       return;
@@ -28,7 +28,7 @@ export function CategoryManager() {
       setError('This category already exists.');
       return;
     }
-    addCategory(newCategory.trim());
+    await addCategory(newCategory.trim());
     setNewCategory('');
     setError('');
   };
