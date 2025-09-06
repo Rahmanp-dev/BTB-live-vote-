@@ -5,11 +5,12 @@ import { Header } from '@/components/header';
 import { PitchCard } from '@/components/pitch-card';
 import { PitchContext } from '@/context/PitchContext';
 import type { Pitch } from '@/lib/types';
-import { LivePitchView } from '@/components/live-pitch-view';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function Home() {
-  const { pitches, isLiveMode, currentPitchId, loading } = useContext(PitchContext);
+  const { pitches, loading, isLiveMode } = useContext(PitchContext);
 
   if (loading) {
     return (
@@ -41,11 +42,6 @@ export default function Home() {
     );
   }
 
-  if (isLiveMode) {
-    const currentPitch = pitches.find(p => p._id === currentPitchId);
-    return <LivePitchView pitch={currentPitch} />;
-  }
-
   const visiblePitches = pitches.filter((pitch) => pitch.visible);
 
   const pitchesByCategory = visiblePitches.reduce((acc, pitch) => {
@@ -61,6 +57,18 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
+      {isLiveMode && (
+        <div className="bg-primary text-primary-foreground text-center p-4">
+            <div className="container mx-auto">
+                <p className="font-bold text-lg animate-pulse">
+                    Live Event in Progress!
+                </p>
+                <Button asChild variant="secondary" className="mt-2">
+                    <Link href="/live">Click here to join</Link>
+                </Button>
+            </div>
+        </div>
+      )}
       <main className="flex-1 p-4 sm:p-6 md:p-8">
         <div className="container mx-auto">
           <div className="text-center mb-8">

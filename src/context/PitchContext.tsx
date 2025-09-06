@@ -3,6 +3,13 @@
 import type { Pitch, Category } from '@/lib/types';
 import { createContext, useState, useEffect, type ReactNode } from 'react';
 
+// This is a temporary type for the live mode state
+// In a real app, this would be stored in a database (like Firebase Realtime Database)
+interface LiveState {
+  isLive: boolean;
+  currentPitchId: string | null;
+}
+
 interface PitchContextType {
   pitches: Pitch[];
   categories: string[];
@@ -16,8 +23,8 @@ interface PitchContextType {
   getWinnerForCategory: (category: string) => Pitch | null;
   addCategory: (category: string) => Promise<void>;
   removeCategory: (category: string) => Promise<void>;
-  toggleLiveMode: () => void;
-  setCurrentPitch: (pitchId: string | null) => void;
+  startLiveMode: () => void;
+  endLiveMode: () => void;
   goToNextPitch: () => void;
   goToPreviousPitch: () => void;
 }
@@ -35,8 +42,8 @@ export const PitchContext = createContext<PitchContextType>({
   getWinnerForCategory: () => null,
   addCategory: async () => {},
   removeCategory: async () => {},
-  toggleLiveMode: () => {},
-  setCurrentPitch: () => {},
+  startLiveMode: () => {},
+  endLiveMode: () => {},
   goToNextPitch: () => {},
   goToPreviousPitch: () => {},
 });
@@ -51,13 +58,15 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [pitchesRes, categoriesRes] = await Promise.all([
+      const [pitchesRes, categoriesRes, liveStateRes] = await Promise.all([
         fetch('/api/pitches'),
         fetch('/api/categories'),
+        fetch('/api/livestate'),
       ]);
 
       const pitchesData = await pitchesRes.json();
       const categoriesData = await categoriesRes.json();
+      const liveStateData = await liveStateRes.json();
 
       if (pitchesData.success) {
         const pitchesWithAvgRating = pitchesData.data.map((p: Pitch) => ({
@@ -67,7 +76,6 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         setPitches(pitchesWithAvgRating);
       }
       if (categoriesData.success) {
-        // If no categories, add default ones
         if (categoriesData.data.length === 0) {
             const defaultCategories = ['Web Development', '3D Animation', 'Video Editing', 'VFX'];
             await Promise.all(defaultCategories.map(name => addCategory(name, false)));
@@ -75,6 +83,10 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         } else {
             setCategories(categoriesData.data.map((c: Category) => c.name));
         }
+      }
+      if (liveStateData.success) {
+        setIsLiveMode(liveStateData.data.isLive);
+        setCurrentPitchId(liveStateData.data.currentPitchId);
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -85,7 +97,40 @@ export function PitchProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchData();
+    // Set up polling to get the latest live state
+    const interval = setInterval(fetchLiveState, 2000); // Poll every 2 seconds
+    return () => clearInterval(interval);
   }, []);
+  
+  const fetchLiveState = async () => {
+    try {
+      const res = await fetch('/api/livestate');
+      const data = await res.json();
+      if (data.success) {
+        setIsLiveMode(data.data.isLive);
+        setCurrentPitchId(data.data.currentPitchId);
+      }
+    } catch (error) {
+      console.error("Failed to fetch live state:", error);
+    }
+  };
+
+  const updateLiveState = async (state: Partial<LiveState>) => {
+    try {
+      const res = await fetch('/api/livestate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsLiveMode(data.data.isLive);
+        setCurrentPitchId(data.data.currentPitchId);
+      }
+    } catch (error) {
+      console.error('Failed to update live state:', error);
+    }
+  };
 
   const addPitch = async (newPitch: Omit<Pitch, '_id' | 'rating' | 'visible' | 'ratings'>) => {
     try {
@@ -182,45 +227,47 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const toggleLiveMode = () => {
-    setIsLiveMode(prev => {
-      if (!prev) {
-        const sortedPitches = getSortedPitches();
-        setCurrentPitchId(sortedPitches.length > 0 ? sortedPitches[0]._id : null);
-      } else {
-        setCurrentPitchId(null);
-      }
-      return !prev;
-    });
-  };
-  
-  const setCurrentPitch = (pitchId: string | null) => {
-    setCurrentPitchId(pitchId);
-  };
-
   const getSortedPitches = () => {
+    // Sorts by category order first, then by title within the category
     return pitches
       .filter(p => p.visible)
       .sort((a, b) => {
-        const catA = categories.indexOf(a.category);
-        const catB = categories.indexOf(b.category);
-        return catA !== catB ? catA - catB : a._id.localeCompare(b._id);
+        const catAIndex = categories.indexOf(a.category);
+        const catBIndex = categories.indexOf(b.category);
+        if (catAIndex !== catBIndex) {
+          return catAIndex - catBIndex;
+        }
+        return a.title.localeCompare(b.title);
       });
+  };
+
+  const startLiveMode = () => {
+    const sortedPitches = getSortedPitches();
+    const firstPitchId = sortedPitches.length > 0 ? sortedPitches[0]._id : null;
+    updateLiveState({ isLive: true, currentPitchId: firstPitchId });
+  };
+  
+  const endLiveMode = () => {
+    updateLiveState({ isLive: false, currentPitchId: null });
   };
 
   const goToNextPitch = () => {
     const sortedPitches = getSortedPitches();
+    if (sortedPitches.length === 0) return;
+
     const currentIndex = sortedPitches.findIndex(p => p._id === currentPitchId);
     if (currentIndex > -1 && currentIndex < sortedPitches.length - 1) {
-      setCurrentPitchId(sortedPitches[currentIndex + 1]._id);
+      updateLiveState({ currentPitchId: sortedPitches[currentIndex + 1]._id });
     }
   };
 
   const goToPreviousPitch = () => {
     const sortedPitches = getSortedPitches();
+    if (sortedPitches.length === 0) return;
+
     const currentIndex = sortedPitches.findIndex(p => p._id === currentPitchId);
     if (currentIndex > 0) {
-      setCurrentPitchId(sortedPitches[currentIndex - 1]._id);
+      updateLiveState({ currentPitchId: sortedPitches[currentIndex - 1]._id });
     }
   };
 
@@ -237,8 +284,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     getWinnerForCategory,
     addCategory,
     removeCategory,
-    toggleLiveMode,
-    setCurrentPitch,
+    startLiveMode,
+    endLiveMode,
     goToNextPitch,
     goToPreviousPitch,
   };
