@@ -21,7 +21,18 @@ import type { Pitch } from '@/lib/types';
 import { AdminLayout } from './admin-layout';
 import { Button } from './ui/button';
 import { AddPitchDialog } from './add-pitch-dialog';
-import { Crown } from 'lucide-react';
+import { Crown, Trash2 } from 'lucide-react';
+import { Switch } from './ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 
 interface AdminDashboardProps {
   pitches: Pitch[];
@@ -30,16 +41,31 @@ interface AdminDashboardProps {
 export function AdminDashboard({ pitches: initialPitches }: AdminDashboardProps) {
   const [pitches, setPitches] = useState<Pitch[]>(initialPitches);
   const [isAddPitchOpen, setIsAddPitchOpen] = useState(false);
+  const [pitchToDelete, setPitchToDelete] = useState<Pitch | null>(null);
 
-  const handleAddPitch = (newPitch: Omit<Pitch, 'id' | 'rating'>) => {
+  const handleAddPitch = (newPitch: Omit<Pitch, 'id' | 'rating' | 'visible'>) => {
     setPitches((prevPitches) => [
       ...prevPitches,
       {
         ...newPitch,
-        id: prevPitches.length + 1,
-        rating: 0, // New pitches start with a rating of 0
+        id: (prevPitches[prevPitches.length - 1]?.id ?? 0) + 1,
+        rating: 0,
+        visible: true,
       },
     ]);
+  };
+
+  const handleRemovePitch = (pitchId: number) => {
+    setPitches((prevPitches) => prevPitches.filter((p) => p.id !== pitchId));
+    setPitchToDelete(null);
+  };
+
+  const handleVisibilityChange = (pitchId: number, isVisible: boolean) => {
+    setPitches((prevPitches) =>
+      prevPitches.map((p) =>
+        p.id === pitchId ? { ...p, visible: isVisible } : p
+      )
+    );
   };
 
   const sortedPitches = [...pitches].sort((a, b) => b.rating - a.rating);
@@ -55,10 +81,9 @@ export function AdminDashboard({ pitches: initialPitches }: AdminDashboardProps)
           </div>
           <Card>
             <CardHeader>
-              <CardTitle>Ratings Summary</CardTitle>
+              <CardTitle>Pitch Management</CardTitle>
               <CardDescription>
-                An overview of all submitted pitches and their ratings. The pitch
-                with the highest rating is the winner.
+                An overview of all submitted pitches. Use the controls to manage visibility and remove pitches.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -67,7 +92,9 @@ export function AdminDashboard({ pitches: initialPitches }: AdminDashboardProps)
                   <TableRow>
                     <TableHead>Pitch Title</TableHead>
                     <TableHead>Presenter</TableHead>
-                    <TableHead className="text-right">Average Rating</TableHead>
+                    <TableHead className="text-center">Visible</TableHead>
+                    <TableHead className="text-right">Rating</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -75,9 +102,7 @@ export function AdminDashboard({ pitches: initialPitches }: AdminDashboardProps)
                     <TableRow
                       key={pitch.id}
                       className={
-                        pitch.id === winner?.id
-                          ? 'bg-accent/50'
-                          : ''
+                        pitch.id === winner?.id ? 'bg-accent/50' : ''
                       }
                     >
                       <TableCell className="font-medium">
@@ -89,10 +114,25 @@ export function AdminDashboard({ pitches: initialPitches }: AdminDashboardProps)
                         </div>
                       </TableCell>
                       <TableCell>{pitch.presenter}</TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={pitch.visible}
+                          onCheckedChange={(checked) => handleVisibilityChange(pitch.id, checked)}
+                        />
+                      </TableCell>
                       <TableCell className="text-right">
                         <Badge variant="secondary" className="text-base">
                           {pitch.rating.toFixed(1)}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setPitchToDelete(pitch)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -102,11 +142,35 @@ export function AdminDashboard({ pitches: initialPitches }: AdminDashboardProps)
           </Card>
         </div>
       </AdminLayout>
+
       <AddPitchDialog
         isOpen={isAddPitchOpen}
         onClose={() => setIsAddPitchOpen(false)}
         onSubmit={handleAddPitch}
       />
+
+      <AlertDialog
+        open={!!pitchToDelete}
+        onOpenChange={() => setPitchToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the pitch for "{pitchToDelete?.title}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPitchToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleRemovePitch(pitchToDelete!.id)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -5,4 +5,5 @@ export interface Pitch {
   presenter: string;
   imageUrl: string;
   rating: number;
+  visible: boolean;
 }

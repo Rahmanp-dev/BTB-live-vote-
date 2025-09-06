@@ -9,6 +9,7 @@ export const pitches: Pitch[] = [
     presenter: 'Jane Doe',
     imageUrl: 'https://picsum.photos/600/400?random=1',
     rating: 4.5,
+    visible: true,
   },
   {
     id: 2,
@@ -18,6 +19,7 @@ export const pitches: Pitch[] = [
     presenter: 'John Smith',
     imageUrl: 'https://picsum.photos/600/400?random=2',
     rating: 4.8,
+    visible: true,
   },
   {
     id: 3,
@@ -27,6 +29,7 @@ export const pitches: Pitch[] = [
     presenter: 'Emily Jones',
     imageUrl: 'https://picsum.photos/600/400?random=3',
     rating: 4.2,
+    visible: true,
   },
   {
     id: 4,
@@ -36,6 +39,7 @@ export const pitches: Pitch[] = [
     presenter: 'Michael Brown',
     imageUrl: 'https://picsum.photos/600/400?random=4',
     rating: 4.6,
+    visible: true,
   },
   {
     id: 5,
@@ -45,6 +49,7 @@ export const pitches: Pitch[] = [
     presenter: 'Sarah Wilson',
     imageUrl: 'https://picsum.photos/600/400?random=5',
     rating: 4.9,
+    visible: true,
   },
   {
     id: 6,
@@ -54,5 +59,6 @@ export const pitches: Pitch[] = [
     presenter: 'David Miller',
     imageUrl: 'https://picsum.photos/600/400?random=6',
     rating: 4.1,
+    visible: true,
   },
 ];

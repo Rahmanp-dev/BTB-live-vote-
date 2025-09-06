@@ -18,7 +18,7 @@ import type { Pitch } from '@/lib/types';
 interface AddPitchDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (pitch: Omit<Pitch, 'id' | 'rating'>) => void;
+  onSubmit: (pitch: Omit<Pitch, 'id' | 'rating' | 'visible'>) => void;
 }
 
 export function AddPitchDialog({
