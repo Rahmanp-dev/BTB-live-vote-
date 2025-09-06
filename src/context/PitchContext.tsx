@@ -172,7 +172,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       }
     };
     
-    const interval = setInterval(fetchLiveState, 30000); // Poll every 3 seconds
+    
+    const interval = setInterval(fetchLiveState, 3000); // Poll every 3 seconds
     return () => clearInterval(interval);
   }, [router, pathname]);
   
