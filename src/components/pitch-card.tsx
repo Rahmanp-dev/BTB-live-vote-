@@ -15,7 +15,7 @@ import { Star } from 'lucide-react';
 import { useState, useContext } from 'react';
 import { RatingDialog } from './rating-dialog';
 import { PitchContext } from '@/context/PitchContext';
-import { Badge } from './ui/badge';
+import { Badge } from '@/components/ui/badge';
 
 interface PitchCardProps {
   pitch: Pitch;
