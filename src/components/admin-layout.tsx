@@ -22,7 +22,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const handleLogout = () => {
-    // In a real app, you'd clear a token from localStorage or a cookie
     sessionStorage.removeItem('isAuthenticated');
     router.push('/login');
   };

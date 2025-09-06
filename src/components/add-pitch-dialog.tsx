@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useContext, useRef } from 'react';
+import { useContext, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import type { Pitch } from '@/lib/types';
 import { PitchContext } from '@/context/PitchContext';
 import {
   Select,
@@ -22,7 +24,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
+import type { Pitch } from '@/lib/types';
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+const pitchSchema = z.object({
+  title: z.string().min(1, "Title is required."),
+  presenter: z.string().min(1, "Presenter is required."),
+  category: z.string().min(1, "Category is required."),
+  description: z.string().min(1, "Description is required."),
+  imageFile: z
+    .instanceof(File, { message: "Image is required." })
+    .refine((file) => file.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
+    .refine(
+      (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
+      "Only .jpg, .jpeg, .png and .webp formats are supported."
+    ),
+});
+
+type PitchFormValues = z.infer<typeof pitchSchema>;
 
 interface AddPitchDialogProps {
   isOpen: boolean;
@@ -33,47 +63,29 @@ export function AddPitchDialog({ isOpen, onClose }: AddPitchDialogProps) {
   const { categories, addPitch } = useContext(PitchContext);
   const { toast } = useToast();
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [presenter, setPresenter] = useState('');
-  const [category, setCategory] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState('');
+  const form = useForm<PitchFormValues>({
+    resolver: zodResolver(pitchSchema),
+    defaultValues: {
+      title: '',
+      presenter: '',
+      category: '',
+      description: '',
+      imageFile: undefined,
+    },
+  });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isSubmitting } = form.formState;
 
-  const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setPresenter('');
-    setCategory('');
-    setImageFile(null);
-    if(fileInputRef.current) {
-        fileInputRef.current.value = '';
+  useEffect(() => {
+    if (!isOpen) {
+      form.reset();
     }
-    setError('');
-    setIsUploading(false);
-  };
+  }, [isOpen, form]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setImageFile(e.target.files[0]);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!title || !description || !presenter || !category || !imageFile) {
-      setError('Please fill out all fields and select an image.');
-      return;
-    }
-
-    setIsUploading(true);
-    setError('');
-
+  const onSubmit = async (data: PitchFormValues) => {
     try {
       const formData = new FormData();
-      formData.append('file', imageFile);
+      formData.append('file', data.imageFile);
 
       const uploadRes = await fetch('/api/upload', {
         method: 'POST',
@@ -81,42 +93,32 @@ export function AddPitchDialog({ isOpen, onClose }: AddPitchDialogProps) {
       });
 
       const uploadData = await uploadRes.json();
-
       if (!uploadData.success) {
         throw new Error(uploadData.error || 'Image upload failed.');
       }
 
       const newPitch: Omit<Pitch, '_id' | 'rating' | 'visible' | 'ratings'> = {
-        title,
-        description,
-        presenter,
+        title: data.title,
+        description: data.description,
+        presenter: data.presenter,
         imageUrl: uploadData.url,
-        category,
+        category: data.category,
       };
 
       await addPitch(newPitch);
       onClose();
-      resetForm();
     } catch (err) {
       console.error(err);
-      setError(err.message || 'An error occurred.');
-       toast({
-        title: "Upload Failed",
-        description: err.message || "Could not upload image. Please try again.",
+      toast({
+        title: "Submission Failed",
+        description: err.message || "Could not create pitch. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsUploading(false);
     }
   };
 
-  const handleDialogClose = () => {
-    onClose();
-    resetForm();
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New Pitch</DialogTitle>
@@ -124,88 +126,99 @@ export function AddPitchDialog({ isOpen, onClose }: AddPitchDialogProps) {
             Fill in the details below to add a new pitch for rating.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="title" className="text-right">
-              Title
-            </Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="col-span-3"
-              disabled={isUploading}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Pitch title" {...field} disabled={isSubmitting} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="presenter" className="text-right">
-              Presenter
-            </Label>
-            <Input
-              id="presenter"
-              value={presenter}
-              onChange={(e) => setPresenter(e.target.value)}
-              className="col-span-3"
-              disabled={isUploading}
+             <FormField
+              control={form.control}
+              name="presenter"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Presenter</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Presenter's name" {...field} disabled={isSubmitting} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="category" className="text-right">
-              Category
-            </Label>
-            <Select onValueChange={setCategory} value={category} disabled={isUploading}>
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="imageFile" className="text-right">
-              Image
-            </Label>
-            <Input
-              id="imageFile"
-              type="file"
-              ref={fileInputRef}
-              accept="image/*"
-              onChange={handleFileChange}
-              className="col-span-3"
-              disabled={isUploading}
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="description" className="text-right">
-              Description
-            </Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="col-span-3"
-              disabled={isUploading}
+            <FormField
+              control={form.control}
+              name="imageFile"
+              render={({ field }) => (
+                 <FormItem>
+                  <FormLabel>Image</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={(e) => field.onChange(e.target.files ? e.target.files[0] : null)}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          {error && (
-            <p className="col-span-4 text-center text-sm text-destructive">
-              {error}
-            </p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleDialogClose} disabled={isUploading}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={isUploading}>
-            {isUploading ? 'Uploading...' : 'Add Pitch'}
-          </Button>
-        </DialogFooter>
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Describe the pitch" {...field} disabled={isSubmitting} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <DialogFooter className="pt-4">
+              <Button variant="outline" onClick={onClose} disabled={isSubmitting} type="button">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : 'Add Pitch'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
