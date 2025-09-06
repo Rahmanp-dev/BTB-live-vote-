@@ -11,15 +11,15 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { LayoutDashboard, Presentation } from 'lucide-react';
+import { Logo } from './logo';
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <div className="flex items-center gap-2 p-2">
-            <Presentation className="text-primary h-6 w-6" />
-            <h1 className="text-lg font-bold">PitchRate Admin</h1>
+          <div className="p-2">
+            <Logo />
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -37,10 +37,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <header className="p-4 border-b md:hidden">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger />
-            <Presentation className="text-primary h-6 w-6" />
-            <h1 className="text-lg font-bold">PitchRate Admin</h1>
+          <div className="flex items-center justify-between">
+            <div className='flex items-center gap-2'>
+              <SidebarTrigger />
+              <h1 className="text-lg font-bold">Behind The Build</h1>
+            </div>
+            <Logo />
           </div>
         </header>
         <main>{children}</main>
