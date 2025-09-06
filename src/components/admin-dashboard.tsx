@@ -19,11 +19,11 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { Pitch } from '@/lib/types';
-import { AdminLayout } from './admin-layout';
-import { Button } from './ui/button';
-import { AddPitchDialog } from './add-pitch-dialog';
-import { Crown, Rocket, Trash2, Trophy, XCircle } from 'lucide-react';
-import { Switch } from './ui/switch';
+import { AdminLayout } from '@/components/admin-layout';
+import { Button } from '@/components/ui/button';
+import { AddPitchDialog } from '@/components/add-pitch-dialog';
+import { Crown, Rocket, Trash2, Trophy, XCircle, RotateCcw } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,11 +33,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from './ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 import { PitchContext } from '@/context/PitchContext';
-import { CategoryManager } from './category-manager';
-import { Separator } from './ui/separator';
-import { Skeleton } from './ui/skeleton';
+import { CategoryManager } from '@/components/category-manager';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
 
 export function AdminDashboard() {
@@ -53,9 +53,11 @@ export function AdminDashboard() {
     isWinnerShowcaseLive,
     endWinnerShowcase,
     showcasedPitch,
+    resetAllRatings,
   } = useContext(PitchContext);
   const [isAddPitchOpen, setIsAddPitchOpen] = useState(false);
   const [pitchToDelete, setPitchToDelete] = useState<Pitch | null>(null);
+  const [isResetRatingsOpen, setIsResetRatingsOpen] = useState(false);
   const router = useRouter();
 
   if (loading) {
@@ -81,6 +83,11 @@ export function AdminDashboard() {
   
   const handleEndShowcase = () => {
     endWinnerShowcase();
+  };
+
+  const handleResetRatings = () => {
+    resetAllRatings();
+    setIsResetRatingsOpen(false);
   };
 
   const pitchesByCategory = pitches.reduce((acc, pitch) => {
@@ -179,10 +186,18 @@ export function AdminDashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Pitch Management</CardTitle>
-              <CardDescription>
-                An overview of all submitted pitches, grouped by category.
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Pitch Management</CardTitle>
+                  <CardDescription>
+                    An overview of all submitted pitches, grouped by category.
+                  </CardDescription>
+                </div>
+                <Button variant="destructive" onClick={() => setIsResetRatingsOpen(true)}>
+                    <RotateCcw className="mr-2" />
+                    Reset All Ratings
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {sortedCategories.length === 0 ? (
@@ -296,6 +311,29 @@ export function AdminDashboard() {
               className="bg-destructive hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={isResetRatingsOpen}
+        onOpenChange={setIsResetRatingsOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset All Ratings?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently reset all ratings for every pitch to 0. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetRatings}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Reset Ratings
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
