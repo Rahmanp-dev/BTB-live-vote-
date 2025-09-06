@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { PitchContext } from '@/context/PitchContext';
 import {
@@ -106,12 +105,17 @@ export function AddPitchDialog({ isOpen, onClose }: AddPitchDialogProps) {
       };
 
       await addPitch(newPitch);
+      toast({
+        title: "Pitch Added",
+        description: `"${data.title}" has been successfully added.`,
+      });
       onClose();
     } catch (err) {
       console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Could not create pitch. Please try again.";
       toast({
         title: "Submission Failed",
-        description: err.message || "Could not create pitch. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
