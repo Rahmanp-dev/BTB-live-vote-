@@ -10,7 +10,7 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, Presentation } from 'lucide-react';
+import { LayoutDashboard } from 'lucide-react';
 import { Logo } from './logo';
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -38,7 +38,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="p-4 border-b md:hidden">
           <div className="flex items-center justify-between">
-            <div className='flex items-center gap-2'>
+            <div className="flex items-center gap-2">
               <SidebarTrigger />
               <h1 className="text-lg font-bold">Behind The Build</h1>
             </div>
