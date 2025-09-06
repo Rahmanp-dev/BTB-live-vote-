@@ -23,7 +23,7 @@ interface PitchCardProps {
 
 export function PitchCard({ pitch }: PitchCardProps) {
   const [isRating, setIsRating] = useState(false);
-  const { updatePitchRating } = useContext(PitchContext);
+  const { updatePitchRating, isLiveMode } = useContext(PitchContext);
 
   const handleRatingSubmit = (rating: number) => {
     updatePitchRating(pitch._id, rating);
@@ -56,7 +56,8 @@ export function PitchCard({ pitch }: PitchCardProps) {
             <Star className="text-primary fill-primary" />
             <span className="font-bold text-lg">{pitch.rating.toFixed(1)}</span>
           </div>
-          <Button onClick={() => setIsRating(true)}>Rate Now</Button>
+          {/* The "Rate Now" button is now conditionally rendered based on isLiveMode */}
+          {isLiveMode && <Button onClick={() => setIsRating(true)}>Rate Now</Button>}
         </CardFooter>
       </Card>
       <RatingDialog
