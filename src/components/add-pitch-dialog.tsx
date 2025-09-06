@@ -21,7 +21,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select';
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddPitchDialogProps {
