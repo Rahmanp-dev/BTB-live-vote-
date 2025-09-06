@@ -27,7 +27,7 @@ export function RatingDialog({
   onClose,
   onSubmit,
 }: RatingDialogProps) {
-  const [rating, setRating] = useState(3);
+  const [rating, setRating] = useState(5);
 
   const handleSubmit = () => {
     onSubmit(rating);
@@ -40,14 +40,14 @@ export function RatingDialog({
         <DialogHeader>
           <DialogTitle>Rate "{pitch.title}"</DialogTitle>
           <DialogDescription>
-            Drag the slider to select your rating from 1 to 5.
+            Drag the slider to select your rating from 0 to 10.
           </DialogDescription>
         </DialogHeader>
         <div className="py-8">
           <div className="flex items-center gap-4">
             <Slider
-              min={1}
-              max={5}
+              min={0}
+              max={10}
               step={0.5}
               value={[rating]}
               onValueChange={(value) => setRating(value[0])}
