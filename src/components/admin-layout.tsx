@@ -1,3 +1,5 @@
+"use client";
+
 import Link from 'next/link';
 import {
   SidebarProvider,
@@ -9,11 +11,22 @@ import {
   SidebarMenuButton,
   SidebarInset,
   SidebarTrigger,
+  SidebarFooter,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, LogOut } from 'lucide-react';
 import { Logo } from './logo';
+import { useRouter } from 'next/navigation';
+import { Button } from './ui/button';
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
+  const handleLogout = () => {
+    // In a real app, you'd clear a token from localStorage or a cookie
+    sessionStorage.removeItem('isAuthenticated');
+    router.push('/login');
+  };
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -34,6 +47,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
+        <SidebarFooter>
+          <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+            <LogOut />
+            Logout
+          </Button>
+        </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="p-4 border-b md:hidden">
