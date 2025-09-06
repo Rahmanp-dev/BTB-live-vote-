@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Star } from 'lucide-react';
 import { useState, useContext } from 'react';
-import { RatingDialog } from './rating-dialog';
+import { RatingDialog } from '@/components/rating-dialog';
 import { PitchContext } from '@/context/PitchContext';
 import { Badge } from '@/components/ui/badge';
 
