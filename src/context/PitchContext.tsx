@@ -6,6 +6,8 @@ import { createContext, useState, type ReactNode } from 'react';
 interface PitchContextType {
   pitches: Pitch[];
   categories: string[];
+  isLiveMode: boolean;
+  currentPitchId: number | null;
   addPitch: (pitch: Omit<Pitch, 'id' | 'rating' | 'visible' | 'ratings'>) => void;
   removePitch: (pitchId: number) => void;
   togglePitchVisibility: (pitchId: number, isVisible: boolean) => void;
@@ -13,11 +15,17 @@ interface PitchContextType {
   getWinnerForCategory: (category: string) => Pitch | null;
   addCategory: (category: string) => void;
   removeCategory: (category: string) => void;
+  toggleLiveMode: () => void;
+  setCurrentPitch: (pitchId: number | null) => void;
+  goToNextPitch: () => void;
+  goToPreviousPitch: () => void;
 }
 
 export const PitchContext = createContext<PitchContextType>({
   pitches: [],
   categories: [],
+  isLiveMode: false,
+  currentPitchId: null,
   addPitch: () => {},
   removePitch: () => {},
   togglePitchVisibility: () => {},
@@ -25,6 +33,10 @@ export const PitchContext = createContext<PitchContextType>({
   getWinnerForCategory: () => null,
   addCategory: () => {},
   removeCategory: () => {},
+  toggleLiveMode: () => {},
+  setCurrentPitch: () => {},
+  goToNextPitch: () => {},
+  goToPreviousPitch: () => {},
 });
 
 const defaultCategories = [
@@ -37,6 +49,8 @@ const defaultCategories = [
 export function PitchProvider({ children }: { children: ReactNode }) {
   const [pitches, setPitches] = useState<Pitch[]>([]);
   const [categories, setCategories] = useState<string[]>(defaultCategories);
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [currentPitchId, setCurrentPitchId] = useState<number | null>(null);
 
   const addPitch = (
     newPitch: Omit<Pitch, 'id' | 'rating' | 'visible' | 'ratings'>
@@ -95,13 +109,63 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     setCategories((prevCategories) =>
       prevCategories.filter((c) => c !== categoryToRemove)
     );
-    // Optional: Also remove pitches associated with this category
-    // setPitches(prev => prev.filter(p => p.category !== categoryToRemove));
   };
+
+  const toggleLiveMode = () => {
+    setIsLiveMode(prev => {
+      if (!prev) { // If turning live mode ON
+        const sortedPitches = getSortedPitches();
+        if (sortedPitches.length > 0) {
+          setCurrentPitchId(sortedPitches[0].id);
+        } else {
+          setCurrentPitchId(null);
+        }
+      } else { // If turning live mode OFF
+        setCurrentPitchId(null);
+      }
+      return !prev;
+    });
+  };
+
+  const setCurrentPitch = (pitchId: number | null) => {
+    setCurrentPitchId(pitchId);
+  };
+  
+  const getSortedPitches = () => {
+    return pitches
+      .filter(p => p.visible)
+      .sort((a, b) => {
+        const catA = categories.indexOf(a.category);
+        const catB = categories.indexOf(b.category);
+        if (catA !== catB) {
+          return catA - catB;
+        }
+        return a.id - b.id; // Fallback sort by ID
+      });
+  };
+
+  const goToNextPitch = () => {
+    const sortedPitches = getSortedPitches();
+    const currentIndex = sortedPitches.findIndex(p => p.id === currentPitchId);
+    if (currentIndex > -1 && currentIndex < sortedPitches.length - 1) {
+      setCurrentPitchId(sortedPitches[currentIndex + 1].id);
+    }
+  };
+
+  const goToPreviousPitch = () => {
+    const sortedPitches = getSortedPitches();
+    const currentIndex = sortedPitches.findIndex(p => p.id === currentPitchId);
+    if (currentIndex > 0) {
+      setCurrentPitchId(sortedPitches[currentIndex - 1].id);
+    }
+  };
+
 
   const value = {
     pitches,
     categories,
+    isLiveMode,
+    currentPitchId,
     addPitch,
     removePitch,
     togglePitchVisibility,
@@ -109,6 +173,10 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     getWinnerForCategory,
     addCategory,
     removeCategory,
+    toggleLiveMode,
+    setCurrentPitch,
+    goToNextPitch,
+    goToPreviousPitch,
   };
 
   return (

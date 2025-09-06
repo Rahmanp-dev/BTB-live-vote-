@@ -36,6 +36,7 @@ import {
 import { PitchContext } from '@/context/PitchContext';
 import { CategoryManager } from './category-manager';
 import { Separator } from './ui/separator';
+import { LiveModePanel } from './live-mode-panel';
 
 export function AdminDashboard() {
   const {
@@ -43,6 +44,8 @@ export function AdminDashboard() {
     removePitch,
     togglePitchVisibility,
     getWinnerForCategory,
+    isLiveMode,
+    toggleLiveMode,
   } = useContext(PitchContext);
   const [isAddPitchOpen, setIsAddPitchOpen] = useState(false);
   const [pitchToDelete, setPitchToDelete] = useState<Pitch | null>(null);
@@ -63,8 +66,25 @@ export function AdminDashboard() {
         <div className="p-4 sm:p-6 md:p-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-3xl font-bold">Admin Dashboard</h2>
-            <Button onClick={() => setIsAddPitchOpen(true)}>Add New Pitch</Button>
+            <div className="flex items-center gap-4">
+               <div className="flex items-center space-x-2">
+                <Switch
+                  id="live-mode"
+                  checked={isLiveMode}
+                  onCheckedChange={toggleLiveMode}
+                />
+                <label htmlFor="live-mode" className="font-medium">Live Mode</label>
+              </div>
+              <Button onClick={() => setIsAddPitchOpen(true)}>Add New Pitch</Button>
+            </div>
           </div>
+
+          {isLiveMode && (
+            <>
+              <LiveModePanel />
+              <Separator className="my-8" />
+            </>
+          )}
 
           <CategoryManager />
 

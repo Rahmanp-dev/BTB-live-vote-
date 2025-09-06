@@ -5,9 +5,15 @@ import { Header } from '@/components/header';
 import { PitchCard } from '@/components/pitch-card';
 import { PitchContext } from '@/context/PitchContext';
 import type { Pitch } from '@/lib/types';
+import { LivePitchView } from '@/components/live-pitch-view';
 
 export default function Home() {
-  const { pitches } = useContext(PitchContext);
+  const { pitches, isLiveMode, currentPitchId } = useContext(PitchContext);
+
+  if (isLiveMode) {
+    const currentPitch = pitches.find(p => p.id === currentPitchId);
+    return <LivePitchView pitch={currentPitch} />;
+  }
 
   const visiblePitches = pitches.filter((pitch) => pitch.visible);
 
