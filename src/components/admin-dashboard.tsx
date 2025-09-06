@@ -15,13 +15,14 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
+  CardFooter,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { Pitch } from '@/lib/types';
 import { AdminLayout } from './admin-layout';
 import { Button } from './ui/button';
 import { AddPitchDialog } from './add-pitch-dialog';
-import { Crown, Rocket, Trash2 } from 'lucide-react';
+import { Crown, Rocket, Trash2, Trophy, XCircle } from 'lucide-react';
 import { Switch } from './ui/switch';
 import {
   AlertDialog,
@@ -47,6 +48,11 @@ export function AdminDashboard() {
     getWinnerForCategory,
     startLiveMode,
     loading,
+    categories,
+    startWinnerShowcase,
+    isWinnerShowcaseLive,
+    endWinnerShowcase,
+    showcasedPitch,
   } = useContext(PitchContext);
   const [isAddPitchOpen, setIsAddPitchOpen] = useState(false);
   const [pitchToDelete, setPitchToDelete] = useState<Pitch | null>(null);
@@ -67,6 +73,14 @@ export function AdminDashboard() {
   const handleGoLive = () => {
     startLiveMode();
     router.push('/presenter');
+  };
+
+  const handleShowcaseWinner = (categoryId: string) => {
+    startWinnerShowcase(categoryId);
+  };
+  
+  const handleEndShowcase = () => {
+    endWinnerShowcase();
   };
 
   const pitchesByCategory = pitches.reduce((acc, pitch) => {
@@ -97,6 +111,71 @@ export function AdminDashboard() {
           <CategoryManager />
 
           <Separator className="my-8" />
+
+          {isWinnerShowcaseLive ? (
+            <Card className="mb-8 border-primary">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="text-primary" />
+                  Winner Showcase is Active
+                </CardTitle>
+                <CardDescription>
+                  You are currently showcasing the winner for: <span className="font-bold">{showcasedPitch?.category}</span>.
+                  Select another category to switch, or end the showcase.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                 {categories.map(category => {
+                    const winner = getWinnerForCategory(category);
+                    if (!winner) return null;
+                    return (
+                        <Button
+                            key={category}
+                            variant={showcasedPitch?.category === category ? "default" : "outline"}
+                            onClick={() => handleShowcaseWinner(category)}
+                        >
+                            Show {category} Winner
+                        </Button>
+                    );
+                 })}
+              </CardContent>
+              <CardFooter>
+                 <Button variant="destructive" onClick={handleEndShowcase}>
+                    <XCircle className="mr-2" />
+                    End Showcase
+                </Button>
+              </CardFooter>
+            </Card>
+          ) : (
+            <Card className="mb-8">
+                <CardHeader>
+                    <CardTitle>Showcase Winners</CardTitle>
+                    <CardDescription>
+                        After the event, you can present the winners for each category here.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                    {categories.map(category => {
+                        const winner = getWinnerForCategory(category);
+                        if (!winner) return (
+                             <Button key={category} variant="outline" disabled>
+                                No Winner for {category}
+                            </Button>
+                        );
+                        return (
+                            <Button
+                                key={category}
+                                variant="outline"
+                                onClick={() => handleShowcaseWinner(category)}
+                            >
+                                <Trophy className="mr-2" />
+                                Showcase {category} Winner
+                            </Button>
+                        );
+                    })}
+                </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -203,7 +282,7 @@ export function AdminDashboard() {
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the pitch for "{pitchToDelete?.title}".
-            </AlertDialogDescription>
+            </-AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPitchToDelete(null)}>Cancel</AlertDialogCancel>

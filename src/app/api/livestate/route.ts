@@ -6,6 +6,8 @@ import { NextResponse } from 'next/server';
 let liveState = {
   isLive: false,
   currentPitchId: null,
+  isWinnerShowcaseLive: false,
+  showcasedCategoryId: null,
 };
 
 export async function GET() {
