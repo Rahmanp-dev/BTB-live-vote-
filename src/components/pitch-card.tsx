@@ -45,6 +45,7 @@ export function PitchCard({ pitch }: PitchCardProps) {
               fill
               className="object-cover"
               data-ai-hint="product photo"
+              priority
             />
           </div>
           <div className='flex justify-between items-start'>

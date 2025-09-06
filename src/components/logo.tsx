@@ -9,6 +9,7 @@ export function Logo() {
         width={200}
         height={150}
         className="text-primary"
+        priority
       />
     </div>
   );
