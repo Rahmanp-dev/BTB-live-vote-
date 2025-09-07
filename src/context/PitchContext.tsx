@@ -133,42 +133,42 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     fetchData();
   }, [fetchData]);
 
+  // Use a stable polling mechanism instead of SSE
   useEffect(() => {
-    const eventSource = new EventSource('/api/livestate/events');
-    
-    eventSource.onopen = () => {
-      // Connection is open
-    };
-    
-    eventSource.onmessage = (event) => {
+    const fetchLiveState = async () => {
       try {
-        const data: LiveState = JSON.parse(event.data);
+        const res = await fetch('/api/livestate');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
         
-        setIsLiveMode(prev => prev !== data.isLive ? data.isLive : prev);
-        setCurrentPitchId(prev => prev !== data.currentPitchId ? data.currentPitchId : prev);
-        setIsWinnerShowcaseLive(prev => prev !== data.isWinnerShowcaseLive ? data.isWinnerShowcaseLive : prev);
-        setShowcasedCategoryId(prev => prev !== data.showcasedCategoryId ? data.showcasedCategoryId : prev);
+        const text = await res.text();
+        const data = JSON.parse(text); // Parse text to avoid issues with empty responses
+        
+        if (data.success && data.data) {
+          const { isLive, currentPitchId, isWinnerShowcaseLive, showcasedCategoryId } = data.data;
 
-        const isAdminPage = pathname.startsWith('/admin') || pathname.startsWith('/presenter') || pathname.startsWith('/login');
+          setIsLiveMode(prev => prev !== isLive ? isLive : prev);
+          setCurrentPitchId(prev => prev !== currentPitchId ? currentPitchId : prev);
+          setIsWinnerShowcaseLive(prev => prev !== isWinnerShowcaseLive ? isWinnerShowcaseLive : prev);
+          setShowcasedCategoryId(prev => prev !== showcasedCategoryId ? showcasedCategoryId : prev);
 
-        if (data.isWinnerShowcaseLive && !pathname.startsWith('/showcase') && !isAdminPage) {
+          const isAdminPage = pathname.startsWith('/admin') || pathname.startsWith('/presenter') || pathname.startsWith('/login');
+          if (isWinnerShowcaseLive && !pathname.startsWith('/showcase') && !isAdminPage) {
             router.push('/showcase');
-        } else if (!data.isWinnerShowcaseLive && pathname.startsWith('/showcase')) {
+          } else if (!isWinnerShowcaseLive && pathname.startsWith('/showcase')) {
             router.push('/');
+          }
         }
       } catch (error) {
-        console.error("Failed to parse live state event:", error);
+        // Log error but don't crash the app. Polling will continue.
+        console.error('Failed to fetch live state:', error);
       }
     };
+    
+    const intervalId = setInterval(fetchLiveState, 3000); // Poll every 3 seconds
 
-    eventSource.onerror = (error) => {
-        console.error('EventSource failed:', error);
-        eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-    };
+    return () => clearInterval(intervalId);
   }, [pathname, router]);
   
   const updateLiveState = async (state: Partial<LiveState>) => {
