@@ -101,36 +101,48 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       ]);
 
       if (pitchesRes.ok) {
-        const pitchesData = await pitchesRes.json();
-        if (pitchesData.success) {
-          const pitchesWithAvgRating = pitchesData.data.map((p: Pitch) => ({
-            ...p,
-            rating: p.ratings && p.ratings.length > 0 ? p.ratings.reduce((a, b) => a + b, 0) / p.ratings.length : 0,
-          }));
-          setPitches(pitchesWithAvgRating);
+        try {
+            const pitchesData = await pitchesRes.json();
+            if (pitchesData.success) {
+              const pitchesWithAvgRating = pitchesData.data.map((p: Pitch) => ({
+                ...p,
+                rating: p.ratings && p.ratings.length > 0 ? p.ratings.reduce((a, b) => a + b, 0) / p.ratings.length : 0,
+              }));
+              setPitches(pitchesWithAvgRating);
+            }
+        } catch (e) {
+            console.error('Failed to parse pitches JSON', e)
         }
       }
 
       if (categoriesRes.ok) {
-        const categoriesData = await categoriesRes.json();
-        if (categoriesData.success) {
-          if (categoriesData.data.length === 0) {
-            const defaultCategories = ['Web Development', '3D Animation', 'Video Editing', 'VFX'];
-            defaultCategories.forEach(name => addCategory(name, false));
-            setCategories(defaultCategories);
-          } else {
-            setCategories(categoriesData.data.map((c: Category) => c.name));
-          }
+        try {
+            const categoriesData = await categoriesRes.json();
+            if (categoriesData.success) {
+              if (categoriesData.data.length === 0) {
+                const defaultCategories = ['Web Development', '3D Animation', 'Video Editing', 'VFX'];
+                defaultCategories.forEach(name => addCategory(name, false));
+                setCategories(defaultCategories);
+              } else {
+                setCategories(categoriesData.data.map((c: Category) => c.name));
+              }
+            }
+        } catch(e) {
+            console.error('Failed to parse categories JSON', e)
         }
       }
       
       if(liveStateRes.ok) {
-        const liveStateData = await liveStateRes.json();
-        if (liveStateData.success && liveStateData.data) {
-          setIsLiveMode(liveStateData.data.isLive);
-          setCurrentPitchId(liveStateData.data.currentPitchId);
-          setIsWinnerShowcaseLive(liveStateData.data.isWinnerShowcaseLive);
-          setShowcasedCategoryId(liveStateData.data.showcasedCategoryId);
+        try {
+            const liveStateData = await liveStateRes.json();
+            if (liveStateData.success && liveStateData.data) {
+              setIsLiveMode(liveStateData.data.isLive);
+              setCurrentPitchId(liveStateData.data.currentPitchId);
+              setIsWinnerShowcaseLive(liveStateData.data.isWinnerShowcaseLive);
+              setShowcasedCategoryId(liveStateData.data.showcasedCategoryId);
+            }
+        } catch (e) {
+            console.error('Failed to parse live state JSON', e)
         }
       }
     } catch (error) {
@@ -155,6 +167,14 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
+        
+        // Check for non-JSON responses before parsing
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            // Silently fail and retry later
+            return;
+        }
+
         const liveStateData = await res.json();
         if (liveStateData.success && liveStateData.data) {
             const data = liveStateData.data;
@@ -269,11 +289,11 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getWinnerForCategory = (category: string): Pitch | null => {
+  const getWinnerForCategory = useCallback((category: string): Pitch | null => {
     const categoryPitches = pitches.filter((p) => p.category === category && p.ratings.length > 0);
     if (categoryPitches.length === 0) return null;
     return categoryPitches.sort((a, b) => b.rating - a.rating)[0];
-  };
+  }, [pitches]);
 
   const removeCategory = async (name: string) => {
     try {
@@ -358,9 +378,6 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const showcasedPitch = getWinnerForCategory(showcasedCategoryId || '');
-
-
   const value = {
     pitches,
     categories,
@@ -370,7 +387,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     initialLoadComplete,
     isWinnerShowcaseLive,
     showcasedCategoryId,
-    showcasedPitch,
+    showcasedPitch: getWinnerForCategory(showcasedCategoryId || ''),
     addPitch,
     removePitch,
     togglePitchVisibility,
