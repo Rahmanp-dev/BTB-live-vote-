@@ -73,21 +73,6 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const addCategoryAndRefetch = useCallback(async (name: string, shouldFetchData = true) => {
-    try {
-      const res = await fetch('/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      if (res.ok && shouldFetchData) {
-        await fetchData();
-      }
-    } catch (error) {
-      console.error('Failed to add category:', error);
-    }
-  }, []);
-
   const fetchData = useCallback(async () => {
     try {
       const [pitchesRes, categoriesRes, liveStateRes] = await Promise.all([
@@ -111,11 +96,11 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         const categoriesData = await categoriesRes.json();
         if (categoriesData.success) {
           if (categoriesData.data.length === 0) {
-              const defaultCategories = ['Web Development', '3D Animation', 'Video Editing', 'VFX'];
-              await Promise.all(defaultCategories.map(name => addCategoryAndRefetch(name, false)));
-              setCategories(defaultCategories);
+            const defaultCategories = ['Web Development', '3D Animation', 'Video Editing', 'VFX'];
+            await Promise.all(defaultCategories.map(name => addCategory(name, false)));
+            setCategories(defaultCategories);
           } else {
-              setCategories(categoriesData.data.map((c: Category) => c.name));
+            setCategories(categoriesData.data.map((c: Category) => c.name));
           }
         }
       }
@@ -134,7 +119,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [addCategoryAndRefetch]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -145,9 +131,16 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       try {
         const res = await fetch('/api/livestate');
         if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
+          console.error(`HTTP error! status: ${res.status}`);
+          return;
         }
         
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            console.error("Received non-JSON response from live state endpoint");
+            return;
+        }
+
         const data = await res.json();
         
         if (data.success && data.data) {
@@ -184,6 +177,21 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       });
     } catch (error) {
       console.error('Failed to update live state:', error);
+    }
+  };
+
+  const addCategory = async (name: string, shouldFetchData = true) => {
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok && shouldFetchData) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to add category:', error);
     }
   };
 
@@ -269,15 +277,22 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   };
 
   const getSortedPitches = () => {
-    const sortedByCategory = [...categories].reduce((acc, category) => {
-        const categoryPitches = pitches.filter(p => p.category === category && p.visible);
-        acc.push(...categoryPitches);
-        return acc;
-    }, [] as Pitch[]);
+    const categoryOrder = categories;
     
-    const uncategorizedPitches = pitches.filter(p => !categories.includes(p.category) && p.visible);
-    
-    return [...sortedByCategory, ...uncategorizedPitches];
+    const visiblePitches = pitches.filter(p => p.visible);
+
+    const sortedPitches = visiblePitches.sort((a, b) => {
+        const aIndex = categoryOrder.indexOf(a.category);
+        const bIndex = categoryOrder.indexOf(b.category);
+
+        if (aIndex === -1 && bIndex === -1) return 0; // Both uncategorized, keep order
+        if (aIndex === -1) return 1; // a is uncategorized, comes after
+        if (bIndex === -1) return -1; // b is uncategorized, comes after
+
+        return aIndex - bIndex;
+    });
+
+    return sortedPitches;
   };
 
   const startLiveMode = () => {
@@ -349,7 +364,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     togglePitchVisibility,
     updatePitchRating,
     getWinnerForCategory,
-    addCategory: addCategoryAndRefetch,
+    addCategory,
     removeCategory,
     startLiveMode,
     endLiveMode,

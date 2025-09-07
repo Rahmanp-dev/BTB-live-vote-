@@ -1,6 +1,6 @@
 {
-  "isLive": false,
-  "currentPitchId": null,
+  "isLive": true,
+  "currentPitchId": "68bc18663c98ae52d8c03788",
   "isWinnerShowcaseLive": false,
   "showcasedCategoryId": null
 }
