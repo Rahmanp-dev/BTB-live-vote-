@@ -24,15 +24,20 @@ interface PitchCardProps {
 
 export function PitchCard({ pitch }: PitchCardProps) {
   const [isRating, setIsRating] = useState(false);
-  const { updatePitchRating, isLiveMode } = useContext(PitchContext);
+  const { updatePitchRating, isLiveMode, userRatings, setUserRatings } = useContext(PitchContext);
   const [hasVoted, setHasVoted] = useState(false);
 
   useEffect(() => {
     const votedPitches = JSON.parse(localStorage.getItem('votedPitches') || '{}');
     if (votedPitches[pitch._id]) {
       setHasVoted(true);
+      if (!userRatings[pitch._id]) {
+          setUserRatings(prev => ({...prev, [pitch._id]: votedPitches[pitch._id]}));
+        }
+    } else {
+        setHasVoted(false);
     }
-  }, [pitch._id]);
+  }, [pitch._id, userRatings, setUserRatings]);
 
   const handleRatingSubmit = (rating: number) => {
     updatePitchRating(pitch._id, rating);
@@ -71,10 +76,18 @@ export function PitchCard({ pitch }: PitchCardProps) {
           <p className="text-muted-foreground">{pitch.description}</p>
         </CardContent>
         <CardFooter className="flex justify-between items-center">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <HelpCircle className="h-5 w-5" />
-            <span className="font-bold text-lg">?</span>
-          </div>
+         {hasVoted && userRatings[pitch._id] ? (
+            <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">You rated:</span>
+                <Star className="text-primary fill-primary h-5 w-5" />
+                <span className="font-bold text-lg">{userRatings[pitch._id]?.toFixed(1)}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <HelpCircle className="h-5 w-5" />
+              <span className="font-bold text-lg">?</span>
+            </div>
+          )}
           {isLiveMode && (
             <Button onClick={() => setIsRating(true)} disabled={hasVoted}>
               {hasVoted ? 'Rated' : 'Rate Now'}
