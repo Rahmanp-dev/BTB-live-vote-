@@ -269,7 +269,7 @@ export function AdminDashboard() {
           <AlertDialogHeader>
             <AlertDialogTitle>Reset All Ratings?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will reset all ratings for every pitch to 0.
+              This action cannot be undone. This will reset all ratings for every pitch to 0 and clear voter history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

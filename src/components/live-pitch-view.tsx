@@ -6,7 +6,7 @@ import { Header } from '@/components/header';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Star } from 'lucide-react';
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import { RatingDialog } from '@/components/rating-dialog';
 import { PitchContext } from '@/context/PitchContext';
 import { Badge } from '@/components/ui/badge';
@@ -17,15 +17,33 @@ interface LivePitchViewProps {
 
 export function LivePitchView({ pitch }: LivePitchViewProps) {
   const [isRating, setIsRating] = useState(false);
-  const { updatePitchRating } = useContext(PitchContext);
+  const { updatePitchRating, userRatings, setUserRatings } = useContext(PitchContext);
+  const [hasVoted, setHasVoted] = useState(false);
+
+  useEffect(() => {
+    if (pitch) {
+      const votedPitches = JSON.parse(localStorage.getItem('votedPitches') || '{}');
+      if (votedPitches[pitch._id]) {
+        setHasVoted(true);
+        if (!userRatings[pitch._id]) {
+          setUserRatings(prev => ({...prev, [pitch._id]: votedPitches[pitch._id]}));
+        }
+      } else {
+        setHasVoted(false);
+      }
+    }
+  }, [pitch, userRatings, setUserRatings]);
 
   const handleRatingSubmit = (rating: number) => {
     if (pitch) {
       updatePitchRating(pitch._id, rating);
+      const votedPitches = JSON.parse(localStorage.getItem('votedPitches') || '{}');
+      votedPitches[pitch._id] = rating;
+      localStorage.setItem('votedPitches', JSON.stringify(votedPitches));
+      setHasVoted(true);
     }
   };
 
-  // Check for a valid image URL. If it's HTML or missing, use a placeholder.
   const imageUrl = pitch?.imageUrl && pitch.imageUrl.startsWith('http') 
     ? pitch.imageUrl 
     : 'https://picsum.photos/600/400';
@@ -61,11 +79,21 @@ export function LivePitchView({ pitch }: LivePitchViewProps) {
                 </p>
                 <p>{pitch.description}</p>
                 <div className='flex justify-between items-center pt-4'>
-                   <div className="flex items-center gap-2">
-                    <Star className="text-primary fill-primary h-6 w-6" />
-                    <span className="font-bold text-2xl">{pitch.rating.toFixed(1)}</span>
-                  </div>
-                  <Button size="lg" onClick={() => setIsRating(true)}>Rate Now</Button>
+                   {hasVoted ? (
+                    <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">You rated:</span>
+                        <Star className="text-primary fill-primary h-6 w-6" />
+                        <span className="font-bold text-2xl">{userRatings[pitch._id]?.toFixed(1)}</span>
+                    </div>
+                   ) : (
+                    <div className="flex items-center gap-2">
+                        <Star className="text-muted h-6 w-6" />
+                        <span className="font-bold text-2xl text-muted-foreground">?</span>
+                    </div>
+                   )}
+                  <Button size="lg" onClick={() => setIsRating(true)} disabled={hasVoted}>
+                    {hasVoted ? 'Rated' : 'Rate Now'}
+                  </Button>
                 </div>
               </div>
             </div>

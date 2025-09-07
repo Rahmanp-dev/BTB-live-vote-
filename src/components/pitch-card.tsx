@@ -12,8 +12,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Star } from 'lucide-react';
-import { useState, useContext } from 'react';
+import { Star, HelpCircle } from 'lucide-react';
+import { useState, useContext, useEffect } from 'react';
 import { RatingDialog } from '@/components/rating-dialog';
 import { PitchContext } from '@/context/PitchContext';
 import { Badge } from '@/components/ui/badge';
@@ -25,12 +25,23 @@ interface PitchCardProps {
 export function PitchCard({ pitch }: PitchCardProps) {
   const [isRating, setIsRating] = useState(false);
   const { updatePitchRating, isLiveMode } = useContext(PitchContext);
+  const [hasVoted, setHasVoted] = useState(false);
+
+  useEffect(() => {
+    const votedPitches = JSON.parse(localStorage.getItem('votedPitches') || '{}');
+    if (votedPitches[pitch._id]) {
+      setHasVoted(true);
+    }
+  }, [pitch._id]);
 
   const handleRatingSubmit = (rating: number) => {
     updatePitchRating(pitch._id, rating);
+    const votedPitches = JSON.parse(localStorage.getItem('votedPitches') || '{}');
+    votedPitches[pitch._id] = rating;
+    localStorage.setItem('votedPitches', JSON.stringify(votedPitches));
+    setHasVoted(true);
   };
 
-  // Check for a valid image URL. If it's HTML, use a placeholder.
   const imageUrl = pitch.imageUrl && pitch.imageUrl.startsWith('http') 
     ? pitch.imageUrl 
     : 'https://picsum.photos/600/400';
@@ -60,12 +71,15 @@ export function PitchCard({ pitch }: PitchCardProps) {
           <p className="text-muted-foreground">{pitch.description}</p>
         </CardContent>
         <CardFooter className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Star className="text-primary fill-primary" />
-            <span className="font-bold text-lg">{pitch.rating.toFixed(1)}</span>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <HelpCircle className="h-5 w-5" />
+            <span className="font-bold text-lg">?</span>
           </div>
-          {/* The "Rate Now" button is now conditionally rendered based on isLiveMode */}
-          {isLiveMode && <Button onClick={() => setIsRating(true)}>Rate Now</Button>}
+          {isLiveMode && (
+            <Button onClick={() => setIsRating(true)} disabled={hasVoted}>
+              {hasVoted ? 'Rated' : 'Rate Now'}
+            </Button>
+          )}
         </CardFooter>
       </Card>
       <RatingDialog

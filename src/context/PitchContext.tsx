@@ -19,6 +19,8 @@ interface PitchContextType {
   loading: boolean;
   initialLoadComplete: boolean;
   isLeaderboardLive: boolean;
+  userRatings: { [pitchId: string]: number };
+  setUserRatings: React.Dispatch<React.SetStateAction<{ [pitchId: string]: number }>>;
   addPitch: (pitch: Omit<Pitch, '_id' | 'rating' | 'visible' | 'ratings'>) => Promise<void>;
   removePitch: (pitchId: string) => Promise<void>;
   togglePitchVisibility: (pitchId: string, isVisible: boolean) => Promise<void>;
@@ -42,6 +44,8 @@ export const PitchContext = createContext<PitchContextType>({
   loading: true,
   initialLoadComplete: false,
   isLeaderboardLive: false,
+  userRatings: {},
+  setUserRatings: () => {},
   addPitch: async () => {},
   removePitch: async () => {},
   togglePitchVisibility: async () => {},
@@ -65,6 +69,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   const [isLeaderboardLive, setIsLeaderboardLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [userRatings, setUserRatings] = useState<{ [pitchId: string]: number }>({});
   const router = useRouter();
   const pathname = usePathname();
 
@@ -242,6 +247,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     const pitch = pitches.find(p => p._id === pitchId);
     if (!pitch) return;
 
+    setUserRatings(prev => ({ ...prev, [pitchId]: newRating }));
+
     const newRatings = [...pitch.ratings, newRating];
     const newAverage = newRatings.reduce((a, b) => a + b, 0) / newRatings.length;
     
@@ -335,6 +342,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/pitches/reset', { method: 'POST' });
       if (res.ok) {
         await fetchData();
+        localStorage.removeItem('votedPitches');
       } else {
         const { error } = await res.json();
         alert(`Failed to reset ratings: ${error}`);
@@ -352,6 +360,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     loading,
     initialLoadComplete,
     isLeaderboardLive,
+    userRatings,
+    setUserRatings,
     addPitch,
     removePitch,
     togglePitchVisibility,
