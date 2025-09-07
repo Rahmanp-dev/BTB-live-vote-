@@ -136,6 +136,10 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const eventSource = new EventSource('/api/livestate/events');
     
+    eventSource.onopen = () => {
+      // Connection is open
+    };
+    
     eventSource.onmessage = (event) => {
       try {
         const data: LiveState = JSON.parse(event.data);
