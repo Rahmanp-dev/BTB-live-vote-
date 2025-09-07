@@ -110,14 +110,13 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       if (categoriesData.success) {
         if (categoriesData.data.length === 0) {
             const defaultCategories = ['Web Development', '3D Animation', 'Video Editing', 'VFX'];
-            // Since this runs on initial load, we don't want a fetch loop.
             await Promise.all(defaultCategories.map(name => addCategoryAndRefetch(name, false)));
             setCategories(defaultCategories);
         } else {
             setCategories(categoriesData.data.map((c: Category) => c.name));
         }
       }
-      if (liveStateData.success) {
+       if (liveStateData.success && liveStateData.data) {
         setIsLiveMode(liveStateData.data.isLive);
         setCurrentPitchId(liveStateData.data.currentPitchId);
         setIsWinnerShowcaseLive(liveStateData.data.isWinnerShowcaseLive);
@@ -135,65 +134,46 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   }, [fetchData]);
 
   useEffect(() => {
-    const fetchLiveState = async () => {
+    const eventSource = new EventSource('/api/livestate/events');
+    
+    eventSource.onmessage = (event) => {
       try {
-        const res = await fetch('/api/livestate');
-        if (!res.ok) {
-            console.error(`Failed to fetch live state: ${res.status}`);
-            return;
-        }
-
-        let data;
-        try {
-            data = await res.json();
-        } catch (e) {
-            console.error("Failed to parse live state JSON:", e);
-            return;
-        }
+        const data: LiveState = JSON.parse(event.data);
         
-        if (data.success && data.data) { // Added data.data check here
-          const { isLive, currentPitchId, isWinnerShowcaseLive, showcasedCategoryId } = data.data;
+        setIsLiveMode(prev => prev !== data.isLive ? data.isLive : prev);
+        setCurrentPitchId(prev => prev !== data.currentPitchId ? data.currentPitchId : prev);
+        setIsWinnerShowcaseLive(prev => prev !== data.isWinnerShowcaseLive ? data.isWinnerShowcaseLive : prev);
+        setShowcasedCategoryId(prev => prev !== data.showcasedCategoryId ? data.showcasedCategoryId : prev);
 
-          setIsLiveMode(prev => prev !== isLive ? isLive : prev);
-          setCurrentPitchId(prev => prev !== currentPitchId ? currentPitchId : prev);
-          setIsWinnerShowcaseLive(prev => prev !== isWinnerShowcaseLive ? isWinnerShowcaseLive : prev);
-          setShowcasedCategoryId(prev => prev !== showcasedCategoryId ? showcasedCategoryId : prev);
-          
-          const isAdminPage = pathname.startsWith('/admin') || pathname.startsWith('/presenter') || pathname.startsWith('/login');
+        const isAdminPage = pathname.startsWith('/admin') || pathname.startsWith('/presenter') || pathname.startsWith('/login');
 
-          if (isWinnerShowcaseLive && !pathname.startsWith('/showcase') && !isAdminPage) {
-              router.push('/showcase');
-          } else if (!isWinnerShowcaseLive && pathname.startsWith('/showcase')) {
-              router.push('/');
-          }
+        if (data.isWinnerShowcaseLive && !pathname.startsWith('/showcase') && !isAdminPage) {
+            router.push('/showcase');
+        } else if (!data.isWinnerShowcaseLive && pathname.startsWith('/showcase')) {
+            router.push('/');
         }
       } catch (error) {
-        console.error("Failed to fetch live state:", error);
+        console.error("Failed to parse live state event:", error);
       }
     };
-    
-    
-    const interval = setInterval(fetchLiveState, 3000); // Poll every 3 seconds
-    return () => clearInterval(interval);
-  }, [router, pathname]);
+
+    eventSource.onerror = (error) => {
+        console.error('EventSource failed:', error);
+        eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [pathname, router]);
   
   const updateLiveState = async (state: Partial<LiveState>) => {
     try {
-      const res = await fetch('/api/livestate', {
+      await fetch('/api/livestate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(state),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.data) {
-          const { isLive, currentPitchId, isWinnerShowcaseLive, showcasedCategoryId } = data.data;
-          setIsLiveMode(isLive);
-          setCurrentPitchId(currentPitchId);
-          setIsWinnerShowcaseLive(isWinnerShowcaseLive);
-          setShowcasedCategoryId(showcasedCategoryId);
-        }
-      }
     } catch (error) {
       console.error('Failed to update live state:', error);
     }
@@ -226,17 +206,18 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   };
 
   const togglePitchVisibility = async (pitchId: string, visible: boolean) => {
+     // Optimistic UI update
+    setPitches(prev => prev.map(p => p._id === pitchId ? { ...p, visible } : p));
     try {
-      const res = await fetch(`/api/pitches/${pitchId}`, {
+      await fetch(`/api/pitches/${pitchId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ visible }),
       });
-      if (res.ok) {
-         setPitches(prev => prev.map(p => p._id === pitchId ? { ...p, visible } : p));
-      }
     } catch (error) {
       console.error('Failed to toggle visibility:', error);
+       // Revert on failure
+      setPitches(prev => prev.map(p => p._id === pitchId ? { ...p, visible: !visible } : p));
     }
   };
 
@@ -245,9 +226,9 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     if (!pitch) return;
 
     const newRatings = [...pitch.ratings, newRating];
+    const newAverage = newRatings.reduce((a, b) => a + b, 0) / newRatings.length;
     
     // Optimistic UI update
-    const newAverage = newRatings.reduce((a, b) => a + b, 0) / newRatings.length;
     setPitches(prev => prev.map(p => p._id === pitchId ? { ...p, ratings: newRatings, rating: newAverage } : p));
 
     try {
@@ -256,7 +237,6 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ratings: newRatings }),
       });
-      // No need to refetch data here as we updated optimistically
     } catch (error) {
       console.error('Failed to update rating:', error);
       // If the API call fails, revert the state
@@ -285,16 +265,15 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   };
 
   const getSortedPitches = () => {
-    return pitches
-      .filter(p => p.visible)
-      .sort((a, b) => {
-        const catAIndex = categories.indexOf(a.category);
-        const catBIndex = categories.indexOf(b.category);
-        if (catAIndex !== catBIndex) {
-          return catAIndex - catBIndex;
-        }
-        return a.title.localeCompare(b.title);
-      });
+    const sortedByCategory = [...categories].reduce((acc, category) => {
+        const categoryPitches = pitches.filter(p => p.category === category && p.visible);
+        acc.push(...categoryPitches);
+        return acc;
+    }, [] as Pitch[]);
+    
+    const uncategorizedPitches = pitches.filter(p => !categories.includes(p.category) && p.visible);
+    
+    return [...sortedByCategory, ...uncategorizedPitches];
   };
 
   const startLiveMode = () => {
