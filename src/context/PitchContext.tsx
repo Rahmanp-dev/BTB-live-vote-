@@ -76,6 +76,21 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const addCategory = useCallback(async (name: string, shouldFetchData = true) => {
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok && shouldFetchData) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to add category:', error);
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -125,54 +140,45 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       setInitialLoadComplete(true);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [addCategory]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   useEffect(() => {
-    const fetchLiveState = async () => {
+    if (!initialLoadComplete) return;
+
+    const eventSource = new EventSource('/api/livestate/events');
+    
+    eventSource.onmessage = (event) => {
       try {
-        const res = await fetch('/api/livestate');
-        if (!res.ok) {
-          console.error(`HTTP error! status: ${res.status}`);
-          return;
-        }
+        const data: LiveState = JSON.parse(event.data);
         
-        const contentType = res.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            console.error("Received non-JSON response from live state endpoint");
-            return;
-        }
+        setIsLiveMode(prev => prev !== data.isLive ? data.isLive : prev);
+        setCurrentPitchId(prev => prev !== data.currentPitchId ? data.currentPitchId : prev);
+        setIsWinnerShowcaseLive(prev => prev !== data.isWinnerShowcaseLive ? data.isWinnerShowcaseLive : prev);
+        setShowcasedCategoryId(prev => prev !== data.showcasedCategoryId ? data.showcasedCategoryId : prev);
 
-        const data = await res.json();
-        
-        if (data.success && data.data) {
-          const { isLive, currentPitchId, isWinnerShowcaseLive, showcasedCategoryId } = data.data;
-
-          setIsLiveMode(prev => prev !== isLive ? isLive : prev);
-          setCurrentPitchId(prev => prev !== currentPitchId ? currentPitchId : prev);
-          setIsWinnerShowcaseLive(prev => prev !== isWinnerShowcaseLive ? isWinnerShowcaseLive : prev);
-          setShowcasedCategoryId(prev => prev !== showcasedCategoryId ? showcasedCategoryId : prev);
-
-          const isAdminPage = pathname.startsWith('/admin') || pathname.startsWith('/presenter') || pathname.startsWith('/login');
-          if (isWinnerShowcaseLive && !pathname.startsWith('/showcase') && !isAdminPage) {
-            router.push('/showcase');
-          } else if (!isWinnerShowcaseLive && pathname.startsWith('/showcase')) {
-            router.push('/');
-          }
+        const isAdminPage = pathname.startsWith('/admin') || pathname.startsWith('/presenter') || pathname.startsWith('/login');
+        if (data.isWinnerShowcaseLive && !pathname.startsWith('/showcase') && !isAdminPage) {
+          router.push('/showcase');
+        } else if (!data.isWinnerShowcaseLive && pathname.startsWith('/showcase')) {
+          router.push('/');
         }
       } catch (error) {
-        console.error('Failed to fetch live state:', error);
+        console.error("Failed to parse live state event:", error);
       }
     };
-    
-    if (initialLoadComplete) {
-        const intervalId = setInterval(fetchLiveState, 3000);
-        return () => clearInterval(intervalId);
-    }
+
+    eventSource.onerror = (error) => {
+        console.error('EventSource failed:', error);
+        eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, [initialLoadComplete, pathname, router]);
   
   const updateLiveState = async (state: Partial<LiveState>) => {
@@ -182,30 +188,11 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(state),
       });
-      if (res.ok) {
-        // Manually update state for immediate feedback
-        if (state.isLive !== undefined) setIsLiveMode(state.isLive);
-        if (state.currentPitchId !== undefined) setCurrentPitchId(state.currentPitchId);
-        if (state.isWinnerShowcaseLive !== undefined) setIsWinnerShowcaseLive(state.isWinnerShowcaseLive);
-        if (state.showcasedCategoryId !== undefined) setShowcasedCategoryId(state.showcasedCategoryId);
+      if (!res.ok) {
+        throw new Error('Failed to update live state');
       }
     } catch (error) {
       console.error('Failed to update live state:', error);
-    }
-  };
-
-  const addCategory = async (name: string, shouldFetchData = true) => {
-    try {
-      const res = await fetch('/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      if (res.ok && shouldFetchData) {
-        await fetchData();
-      }
-    } catch (error) {
-      console.error('Failed to add category:', error);
     }
   };
 
