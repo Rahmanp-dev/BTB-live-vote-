@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Pitch } from '@/lib/types';
@@ -43,6 +44,7 @@ export function PitchCard({ pitch }: PitchCardProps) {
               src={imageUrl}
               alt={pitch.title}
               fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="object-cover"
               data-ai-hint="product photo"
               priority

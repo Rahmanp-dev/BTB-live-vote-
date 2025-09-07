@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Pitch } from '@/lib/types';
@@ -47,6 +48,7 @@ export function LivePitchView({ pitch }: LivePitchViewProps) {
                   src={imageUrl}
                   alt={pitch.title}
                   fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
                   data-ai-hint="product photo"
                 />

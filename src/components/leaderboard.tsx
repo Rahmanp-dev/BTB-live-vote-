@@ -51,6 +51,7 @@ export function Leaderboard() {
                   src={winner.imageUrl}
                   alt={winner.title}
                   fill
+                  sizes="96px"
                   className="object-cover"
                   data-ai-hint="product photo"
                 />
