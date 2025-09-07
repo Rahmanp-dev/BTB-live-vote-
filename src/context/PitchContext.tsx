@@ -151,7 +151,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
             return;
         }
         
-        if (data.success) {
+        if (data.success && data.data) { // Added data.data check here
           const { isLive, currentPitchId, isWinnerShowcaseLive, showcasedCategoryId } = data.data;
 
           setIsLiveMode(prev => prev !== isLive ? isLive : prev);
@@ -186,11 +186,13 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       });
       if (res.ok) {
         const data = await res.json();
-        const { isLive, currentPitchId, isWinnerShowcaseLive, showcasedCategoryId } = data.data;
-        setIsLiveMode(isLive);
-        setCurrentPitchId(currentPitchId);
-        setIsWinnerShowcaseLive(isWinnerShowcaseLive);
-        setShowcasedCategoryId(showcasedCategoryId);
+        if (data.success && data.data) {
+          const { isLive, currentPitchId, isWinnerShowcaseLive, showcasedCategoryId } = data.data;
+          setIsLiveMode(isLive);
+          setCurrentPitchId(currentPitchId);
+          setIsWinnerShowcaseLive(isWinnerShowcaseLive);
+          setShowcasedCategoryId(showcasedCategoryId);
+        }
       }
     } catch (error) {
       console.error('Failed to update live state:', error);
