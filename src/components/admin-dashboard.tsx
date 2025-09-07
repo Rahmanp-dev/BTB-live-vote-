@@ -203,13 +203,12 @@ function PitchCategoryTable({ category, pitches }: { category: string, pitches: 
                 </TableBody>
             </Table>
             
-            {/* Delete Confirmation Dialog for this table */}
             <AlertDialog open={!!pitchToDelete} onOpenChange={() => setPitchToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete the pitch for "{pitchToDelete?.title}".
+                            This will permanently delete the pitch for "{pitchToDelete?.title}". This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -241,7 +240,6 @@ export function AdminDashboard() {
     setIsResetRatingsOpen(false);
   };
   
-  // Memoize grouped pitches to prevent recalculation on every render
   const pitchesByCategory = useMemo(() => {
     return pitches.reduce((acc, pitch) => {
         if (!acc[pitch.category]) acc[pitch.category] = [];
