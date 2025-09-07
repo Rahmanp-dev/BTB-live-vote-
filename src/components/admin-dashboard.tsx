@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useContext, useMemo } from 'react';
@@ -16,7 +17,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Crown, Rocket, Trash2, Trophy, XCircle, RotateCcw } from 'lucide-react';
+import { Crown, Rocket, Trash2, Trophy, RotateCcw, PanelTop } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 import type { Pitch } from '@/lib/types';
 import { PitchContext } from '@/context/PitchContext';
@@ -57,81 +58,29 @@ function DashboardHeader({ onAddPitch, onGoLive, canGoLive }: { onAddPitch: () =
   );
 }
 
-// Sub-component for managing the winner showcase section
-function WinnerShowcaseManager() {
-    const { 
-        categories, 
-        getWinnerForCategory, 
-        startWinnerShowcase, 
-        endWinnerShowcase, 
-        isWinnerShowcaseLive, 
-        showcasedPitch 
-    } = useContext(PitchContext);
-
-    if (isWinnerShowcaseLive) {
-        return (
-            <Card className="mb-8 border-primary">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="text-primary" />
-                  Winner Showcase is Active
-                </CardTitle>
-                <CardDescription>
-                  You are currently showcasing the winner for: <span className="font-bold">{showcasedPitch?.category}</span>.
-                  Select another category to switch, or end the showcase.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                 {categories.map(category => {
-                    if (!getWinnerForCategory(category)) return null;
-                    return (
-                        <Button
-                            key={category}
-                            variant={showcasedPitch?.category === category ? "default" : "outline"}
-                            onClick={() => startWinnerShowcase(category)}
-                        >
-                            Show {category} Winner
-                        </Button>
-                    );
-                 })}
-              </CardContent>
-              <CardFooter>
-                 <Button variant="destructive" onClick={endWinnerShowcase}>
-                    <XCircle className="mr-2" />
-                    End Showcase
-                </Button>
-              </CardFooter>
-            </Card>
-        );
-    }
+// Sub-component for managing the leaderboard
+function LeaderboardManager() {
+    const { isLeaderboardLive, toggleLeaderboard } = useContext(PitchContext);
 
     return (
         <Card className="mb-8">
             <CardHeader>
-                <CardTitle>Showcase Winners</CardTitle>
+                <CardTitle className="flex items-center gap-2"><PanelTop /> Leaderboard Control</CardTitle>
                 <CardDescription>
-                    After the event, you can present the winners for each category here.
+                    Show or hide the winner's leaderboard on the main page for all users.
                 </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-                {categories.map(category => {
-                    const winner = getWinnerForCategory(category);
-                    if (!winner) return (
-                         <Button key={category} variant="outline" disabled>
-                            No Winner for {category}
-                        </Button>
-                    );
-                    return (
-                        <Button
-                            key={category}
-                            variant="outline"
-                            onClick={() => startWinnerShowcase(category)}
-                        >
-                            <Trophy className="mr-2" />
-                            Showcase {category} Winner
-                        </Button>
-                    );
-                })}
+            <CardContent>
+                <div className="flex items-center space-x-2">
+                    <Switch
+                        id="leaderboard-switch"
+                        checked={isLeaderboardLive}
+                        onCheckedChange={toggleLeaderboard}
+                    />
+                    <Label htmlFor="leaderboard-switch" className="text-base">
+                        {isLeaderboardLive ? "Leaderboard is Live" : "Leaderboard is Hidden"}
+                    </Label>
+                </div>
             </CardContent>
         </Card>
     );
@@ -275,7 +224,7 @@ export function AdminDashboard() {
           
           <CategoryManager />
           <Separator className="my-8" />
-          <WinnerShowcaseManager />
+          <LeaderboardManager />
 
           <Card>
             <CardHeader>

@@ -2,16 +2,13 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-// Emitter is no longer needed with polling.
-// import { Emitter } from '@/lib/emitter';
 
 const liveStateFile = path.join(process.cwd(), 'live-state.json');
 
 interface LiveState {
   isLive: boolean;
   currentPitchId: string | null;
-  isWinnerShowcaseLive: boolean;
-  showcasedCategoryId: string | null;
+  isLeaderboardLive: boolean;
 }
 
 async function getLiveState(): Promise<LiveState> {
@@ -19,12 +16,21 @@ async function getLiveState(): Promise<LiveState> {
     const data = await fs.readFile(liveStateFile, 'utf-8');
     return JSON.parse(data);
   } catch (error) {
-    // If the file doesn't exist or is invalid, return default state
+    // If the file doesn't exist, create it with default state
+    if (error.code === 'ENOENT') {
+        const defaultState = {
+            isLive: false,
+            currentPitchId: null,
+            isLeaderboardLive: false,
+        };
+        await fs.writeFile(liveStateFile, JSON.stringify(defaultState, null, 2));
+        return defaultState;
+    }
+    // For other errors, return default state without writing file
     return {
       isLive: false,
       currentPitchId: null,
-      isWinnerShowcaseLive: false,
-      showcasedCategoryId: null,
+      isLeaderboardLive: false,
     };
   }
 }
@@ -33,8 +39,6 @@ async function setLiveState(newState: Partial<LiveState>) {
   const currentState = await getLiveState();
   const updatedState = { ...currentState, ...newState };
   await fs.writeFile(liveStateFile, JSON.stringify(updatedState, null, 2));
-  // Emitter is no longer needed with polling.
-  // Emitter.emit('live-state-change', updatedState);
   return updatedState;
 }
 

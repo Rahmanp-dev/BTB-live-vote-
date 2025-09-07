@@ -8,8 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 interface LiveState {
   isLive: boolean;
   currentPitchId: string | null;
-  isWinnerShowcaseLive: boolean;
-  showcasedCategoryId: string | null;
+  isLeaderboardLive: boolean;
 }
 
 interface PitchContextType {
@@ -19,9 +18,7 @@ interface PitchContextType {
   currentPitchId: string | null;
   loading: boolean;
   initialLoadComplete: boolean;
-  isWinnerShowcaseLive: boolean;
-  showcasedCategoryId: string | null;
-  showcasedPitch: Pitch | null;
+  isLeaderboardLive: boolean;
   addPitch: (pitch: Omit<Pitch, '_id' | 'rating' | 'visible' | 'ratings'>) => Promise<void>;
   removePitch: (pitchId: string) => Promise<void>;
   togglePitchVisibility: (pitchId: string, isVisible: boolean) => Promise<void>;
@@ -33,8 +30,7 @@ interface PitchContextType {
   endLiveMode: () => void;
   goToNextPitch: () => void;
   goToPreviousPitch: () => void;
-  startWinnerShowcase: (categoryId: string) => void;
-  endWinnerShowcase: () => void;
+  toggleLeaderboard: (isLive: boolean) => void;
   resetAllRatings: () => Promise<void>;
 }
 
@@ -45,9 +41,7 @@ export const PitchContext = createContext<PitchContextType>({
   currentPitchId: null,
   loading: true,
   initialLoadComplete: false,
-  isWinnerShowcaseLive: false,
-  showcasedCategoryId: null,
-  showcasedPitch: null,
+  isLeaderboardLive: false,
   addPitch: async () => {},
   removePitch: async () => {},
   togglePitchVisibility: async () => {},
@@ -59,8 +53,7 @@ export const PitchContext = createContext<PitchContextType>({
   endLiveMode: () => {},
   goToNextPitch: () => {},
   goToPreviousPitch: () => {},
-  startWinnerShowcase: () => {},
-  endWinnerShowcase: () => {},
+  toggleLeaderboard: () => {},
   resetAllRatings: async () => {},
 });
 
@@ -69,8 +62,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<string[]>([]);
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [currentPitchId, setCurrentPitchId] = useState<string | null>(null);
-  const [isWinnerShowcaseLive, setIsWinnerShowcaseLive] = useState(false);
-  const [showcasedCategoryId, setShowcasedCategoryId] = useState<string | null>(null);
+  const [isLeaderboardLive, setIsLeaderboardLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const router = useRouter();
@@ -138,8 +130,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
             if (liveStateData.success && liveStateData.data) {
               setIsLiveMode(liveStateData.data.isLive);
               setCurrentPitchId(liveStateData.data.currentPitchId);
-              setIsWinnerShowcaseLive(liveStateData.data.isWinnerShowcaseLive);
-              setShowcasedCategoryId(liveStateData.data.showcasedCategoryId);
+              setIsLeaderboardLive(liveStateData.data.isLeaderboardLive);
             }
         } catch (e) {
             console.error('Failed to parse live state JSON', e)
@@ -159,29 +150,22 @@ export function PitchProvider({ children }: { children: ReactNode }) {
 
   // Robust polling for live state
   useEffect(() => {
-    if (!initialLoadComplete) return;
-
     const fetchLiveState = async () => {
       try {
         const res = await fetch('/api/livestate');
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        
-        // Check for non-JSON responses before parsing
+        if (!res.ok) return;
+
         const contentType = res.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            // Silently fail and retry later
-            return;
-        }
+        if (!contentType || !contentType.includes("application/json")) return;
 
         const liveStateData = await res.json();
         if (liveStateData.success && liveStateData.data) {
             const data = liveStateData.data;
-            setIsLiveMode(prev => prev !== data.isLive ? data.isLive : prev);
-            setCurrentPitchId(prev => prev !== data.currentPitchId ? data.currentPitchId : prev);
-            setIsWinnerShowcaseLive(prev => prev !== data.isWinnerShowcaseLive ? data.isWinnerShowcaseLive : prev);
-            setShowcasedCategoryId(prev => prev !== data.showcasedCategoryId ? data.showcasedCategoryId : prev);
+            if (data) {
+                setIsLiveMode(prev => prev !== data.isLive ? data.isLive : prev);
+                setCurrentPitchId(prev => prev !== data.currentPitchId ? data.currentPitchId : prev);
+                setIsLeaderboardLive(prev => prev !== data.isLeaderboardLive ? data.isLeaderboardLive : prev);
+            }
         }
       } catch (error) {
         console.error("Failed to fetch live state:", error);
@@ -191,20 +175,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     const intervalId = setInterval(fetchLiveState, 3000);
 
     return () => clearInterval(intervalId);
-  }, [initialLoadComplete]);
+  }, []);
 
-  // Handle redirects based on state changes
-  useEffect(() => {
-    if (!initialLoadComplete) return;
-    
-    const isAdminPage = pathname.startsWith('/admin') || pathname.startsWith('/presenter') || pathname.startsWith('/login');
-    if (isWinnerShowcaseLive && !pathname.startsWith('/showcase') && !isAdminPage) {
-      router.push('/showcase');
-    } else if (!isWinnerShowcaseLive && pathname.startsWith('/showcase')) {
-      router.push('/');
-    }
-  }, [isWinnerShowcaseLive, pathname, router, initialLoadComplete]);
-  
   const updateLiveState = async (state: Partial<LiveState>) => {
     try {
       const res = await fetch('/api/livestate', {
@@ -215,13 +187,11 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       if (!res.ok) {
         throw new Error('Failed to update live state');
       }
-      // Manually trigger a state update after changing it for faster feedback
       const data = await res.json();
       if (data.success && data.data) {
           setIsLiveMode(data.data.isLive);
           setCurrentPitchId(data.data.currentPitchId);
-          setIsWinnerShowcaseLive(data.data.isWinnerShowcaseLive);
-          setShowcasedCategoryId(data.data.showcasedCategoryId);
+          setIsLeaderboardLive(data.data.isLeaderboardLive);
       }
     } catch (error) {
       console.error('Failed to update live state:', error);
@@ -356,12 +326,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const startWinnerShowcase = (categoryId: string) => {
-    updateLiveState({ isWinnerShowcaseLive: true, showcasedCategoryId: categoryId });
-  };
-
-  const endWinnerShowcase = () => {
-    updateLiveState({ isWinnerShowcaseLive: false, showcasedCategoryId: null });
+  const toggleLeaderboard = (isLive: boolean) => {
+    updateLiveState({ isLeaderboardLive: isLive });
   };
 
   const resetAllRatings = async () => {
@@ -385,9 +351,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     currentPitchId,
     loading,
     initialLoadComplete,
-    isWinnerShowcaseLive,
-    showcasedCategoryId,
-    showcasedPitch: getWinnerForCategory(showcasedCategoryId || ''),
+    isLeaderboardLive,
     addPitch,
     removePitch,
     togglePitchVisibility,
@@ -399,8 +363,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     endLiveMode,
     goToNextPitch,
     goToPreviousPitch,
-    startWinnerShowcase,
-    endWinnerShowcase,
+    toggleLeaderboard,
     resetAllRatings,
   };
 

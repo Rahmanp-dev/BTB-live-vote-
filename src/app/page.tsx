@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useContext } from 'react';
@@ -8,9 +9,10 @@ import type { Pitch } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Leaderboard } from '@/components/leaderboard';
 
 export default function Home() {
-  const { pitches, loading, isLiveMode } = useContext(PitchContext);
+  const { pitches, loading, isLiveMode, isLeaderboardLive } = useContext(PitchContext);
 
   if (loading) {
     return (
@@ -71,6 +73,7 @@ export default function Home() {
       )}
       <main className="flex-1 p-4 sm:p-6 md:p-8">
         <div className="container mx-auto">
+          {isLeaderboardLive && <Leaderboard />}
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold">Pitches Ready for Review</h2>
             <p className="text-muted-foreground mt-2">
