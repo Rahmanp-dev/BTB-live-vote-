@@ -2,7 +2,8 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { Emitter } from '@/lib/emitter';
+// Emitter is no longer needed with polling.
+// import { Emitter } from '@/lib/emitter';
 
 const liveStateFile = path.join(process.cwd(), 'live-state.json');
 
@@ -32,8 +33,8 @@ async function setLiveState(newState: Partial<LiveState>) {
   const currentState = await getLiveState();
   const updatedState = { ...currentState, ...newState };
   await fs.writeFile(liveStateFile, JSON.stringify(updatedState, null, 2));
-  // Notify all listeners about the change
-  Emitter.emit('live-state-change', updatedState);
+  // Emitter is no longer needed with polling.
+  // Emitter.emit('live-state-change', updatedState);
   return updatedState;
 }
 

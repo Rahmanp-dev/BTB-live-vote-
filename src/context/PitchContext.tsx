@@ -116,7 +116,6 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         if (categoriesData.success) {
           if (categoriesData.data.length === 0) {
             const defaultCategories = ['Web Development', '3D Animation', 'Video Editing', 'VFX'];
-            // This is a fire-and-forget, no need to await all
             defaultCategories.forEach(name => addCategory(name, false));
             setCategories(defaultCategories);
           } else {
@@ -146,40 +145,45 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     fetchData();
   }, [fetchData]);
 
+  // Robust polling for live state
   useEffect(() => {
     if (!initialLoadComplete) return;
 
-    const eventSource = new EventSource('/api/livestate/events');
-    
-    eventSource.onmessage = (event) => {
+    const fetchLiveState = async () => {
       try {
-        const data: LiveState = JSON.parse(event.data);
-        
-        setIsLiveMode(prev => prev !== data.isLive ? data.isLive : prev);
-        setCurrentPitchId(prev => prev !== data.currentPitchId ? data.currentPitchId : prev);
-        setIsWinnerShowcaseLive(prev => prev !== data.isWinnerShowcaseLive ? data.isWinnerShowcaseLive : prev);
-        setShowcasedCategoryId(prev => prev !== data.showcasedCategoryId ? data.showcasedCategoryId : prev);
-
-        const isAdminPage = pathname.startsWith('/admin') || pathname.startsWith('/presenter') || pathname.startsWith('/login');
-        if (data.isWinnerShowcaseLive && !pathname.startsWith('/showcase') && !isAdminPage) {
-          router.push('/showcase');
-        } else if (!data.isWinnerShowcaseLive && pathname.startsWith('/showcase')) {
-          router.push('/');
+        const res = await fetch('/api/livestate');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const liveStateData = await res.json();
+        if (liveStateData.success && liveStateData.data) {
+            const data = liveStateData.data;
+            setIsLiveMode(prev => prev !== data.isLive ? data.isLive : prev);
+            setCurrentPitchId(prev => prev !== data.currentPitchId ? data.currentPitchId : prev);
+            setIsWinnerShowcaseLive(prev => prev !== data.isWinnerShowcaseLive ? data.isWinnerShowcaseLive : prev);
+            setShowcasedCategoryId(prev => prev !== data.showcasedCategoryId ? data.showcasedCategoryId : prev);
         }
       } catch (error) {
-        console.error("Failed to parse live state event:", error);
+        console.error("Failed to fetch live state:", error);
       }
     };
 
-    eventSource.onerror = (error) => {
-        console.error('EventSource failed:', error);
-        eventSource.close();
-    };
+    const intervalId = setInterval(fetchLiveState, 3000);
 
-    return () => {
-      eventSource.close();
-    };
-  }, [initialLoadComplete, pathname, router]);
+    return () => clearInterval(intervalId);
+  }, [initialLoadComplete]);
+
+  // Handle redirects based on state changes
+  useEffect(() => {
+    if (!initialLoadComplete) return;
+    
+    const isAdminPage = pathname.startsWith('/admin') || pathname.startsWith('/presenter') || pathname.startsWith('/login');
+    if (isWinnerShowcaseLive && !pathname.startsWith('/showcase') && !isAdminPage) {
+      router.push('/showcase');
+    } else if (!isWinnerShowcaseLive && pathname.startsWith('/showcase')) {
+      router.push('/');
+    }
+  }, [isWinnerShowcaseLive, pathname, router, initialLoadComplete]);
   
   const updateLiveState = async (state: Partial<LiveState>) => {
     try {
@@ -190,6 +194,14 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       });
       if (!res.ok) {
         throw new Error('Failed to update live state');
+      }
+      // Manually trigger a state update after changing it for faster feedback
+      const data = await res.json();
+      if (data.success && data.data) {
+          setIsLiveMode(data.data.isLive);
+          setCurrentPitchId(data.data.currentPitchId);
+          setIsWinnerShowcaseLive(data.data.isWinnerShowcaseLive);
+          setShowcasedCategoryId(data.data.showcasedCategoryId);
       }
     } catch (error) {
       console.error('Failed to update live state:', error);
