@@ -17,14 +17,15 @@ function PresenterMode() {
     endLiveMode,
     isLiveMode,
     loading,
+    initialLoadComplete,
   } = useContext(PitchContext);
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !isLiveMode) {
+    if (initialLoadComplete && !isLiveMode) {
       router.push('/admin');
     }
-  }, [loading, isLiveMode, router]);
+  }, [initialLoadComplete, isLiveMode, router]);
 
   const currentPitch = pitches.find((p) => p._id === currentPitchId);
 
@@ -33,10 +34,18 @@ function PresenterMode() {
     router.push('/admin');
   };
 
-  if (loading || !currentPitch) {
+  if (loading || !initialLoadComplete) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-900 text-white">
         Loading Presenter Mode...
+      </div>
+    );
+  }
+
+  if (!currentPitch) {
+     return (
+      <div className="flex h-screen items-center justify-center bg-gray-900 text-white">
+        Waiting for pitch...
       </div>
     );
   }

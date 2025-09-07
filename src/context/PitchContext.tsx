@@ -18,6 +18,7 @@ interface PitchContextType {
   isLiveMode: boolean;
   currentPitchId: string | null;
   loading: boolean;
+  initialLoadComplete: boolean;
   isWinnerShowcaseLive: boolean;
   showcasedCategoryId: string | null;
   showcasedPitch: Pitch | null;
@@ -43,6 +44,7 @@ export const PitchContext = createContext<PitchContextType>({
   isLiveMode: false,
   currentPitchId: null,
   loading: true,
+  initialLoadComplete: false,
   isWinnerShowcaseLive: false,
   showcasedCategoryId: null,
   showcasedPitch: null,
@@ -70,11 +72,13 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   const [isWinnerShowcaseLive, setIsWinnerShowcaseLive] = useState(false);
   const [showcasedCategoryId, setShowcasedCategoryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   const fetchData = useCallback(async () => {
     try {
+      setLoading(true);
       const [pitchesRes, categoriesRes, liveStateRes] = await Promise.all([
         fetch('/api/pitches'),
         fetch('/api/categories'),
@@ -97,7 +101,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         if (categoriesData.success) {
           if (categoriesData.data.length === 0) {
             const defaultCategories = ['Web Development', '3D Animation', 'Video Editing', 'VFX'];
-            await Promise.all(defaultCategories.map(name => addCategory(name, false)));
+            // This is a fire-and-forget, no need to await all
+            defaultCategories.forEach(name => addCategory(name, false));
             setCategories(defaultCategories);
           } else {
             setCategories(categoriesData.data.map((c: Category) => c.name));
@@ -118,6 +123,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       console.error("Failed to fetch initial data:", error);
     } finally {
       setLoading(false);
+      setInitialLoadComplete(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -163,18 +169,26 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       }
     };
     
-    const intervalId = setInterval(fetchLiveState, 3000);
-
-    return () => clearInterval(intervalId);
-  }, [pathname, router]);
+    if (initialLoadComplete) {
+        const intervalId = setInterval(fetchLiveState, 3000);
+        return () => clearInterval(intervalId);
+    }
+  }, [initialLoadComplete, pathname, router]);
   
   const updateLiveState = async (state: Partial<LiveState>) => {
     try {
-      await fetch('/api/livestate', {
+      const res = await fetch('/api/livestate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(state),
       });
+      if (res.ok) {
+        // Manually update state for immediate feedback
+        if (state.isLive !== undefined) setIsLiveMode(state.isLive);
+        if (state.currentPitchId !== undefined) setCurrentPitchId(state.currentPitchId);
+        if (state.isWinnerShowcaseLive !== undefined) setIsWinnerShowcaseLive(state.isWinnerShowcaseLive);
+        if (state.showcasedCategoryId !== undefined) setShowcasedCategoryId(state.showcasedCategoryId);
+      }
     } catch (error) {
       console.error('Failed to update live state:', error);
     }
@@ -281,18 +295,16 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     
     const visiblePitches = pitches.filter(p => p.visible);
 
-    const sortedPitches = visiblePitches.sort((a, b) => {
+    return visiblePitches.sort((a, b) => {
         const aIndex = categoryOrder.indexOf(a.category);
         const bIndex = categoryOrder.indexOf(b.category);
 
-        if (aIndex === -1 && bIndex === -1) return 0; // Both uncategorized, keep order
-        if (aIndex === -1) return 1; // a is uncategorized, comes after
-        if (bIndex === -1) return -1; // b is uncategorized, comes after
+        if (aIndex === -1 && bIndex === -1) return 0;
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
 
         return aIndex - bIndex;
     });
-
-    return sortedPitches;
   };
 
   const startLiveMode = () => {
@@ -356,6 +368,7 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     isLiveMode,
     currentPitchId,
     loading,
+    initialLoadComplete,
     isWinnerShowcaseLive,
     showcasedCategoryId,
     showcasedPitch,
