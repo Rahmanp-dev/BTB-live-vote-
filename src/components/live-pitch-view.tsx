@@ -17,29 +17,18 @@ interface LivePitchViewProps {
 
 export function LivePitchView({ pitch }: LivePitchViewProps) {
   const [isRating, setIsRating] = useState(false);
-  const { updatePitchRating, userRatings, setUserRatings } = useContext(PitchContext);
+  const { updatePitchRating, userRatings } = useContext(PitchContext);
   const [hasVoted, setHasVoted] = useState(false);
 
   useEffect(() => {
     if (pitch) {
-      const votedPitches = JSON.parse(localStorage.getItem('votedPitches') || '{}');
-      if (votedPitches[pitch._id]) {
-        setHasVoted(true);
-        if (!userRatings[pitch._id]) {
-          setUserRatings(prev => ({...prev, [pitch._id]: votedPitches[pitch._id]}));
-        }
-      } else {
-        setHasVoted(false);
-      }
+      setHasVoted(!!userRatings[pitch._id]);
     }
-  }, [pitch, userRatings, setUserRatings]);
+  }, [pitch, userRatings]);
 
   const handleRatingSubmit = (rating: number) => {
     if (pitch) {
       updatePitchRating(pitch._id, rating);
-      const votedPitches = JSON.parse(localStorage.getItem('votedPitches') || '{}');
-      votedPitches[pitch._id] = rating;
-      localStorage.setItem('votedPitches', JSON.stringify(votedPitches));
       setHasVoted(true);
     }
   };

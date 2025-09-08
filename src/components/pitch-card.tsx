@@ -24,26 +24,15 @@ interface PitchCardProps {
 
 export function PitchCard({ pitch }: PitchCardProps) {
   const [isRating, setIsRating] = useState(false);
-  const { updatePitchRating, isLiveMode, userRatings, setUserRatings } = useContext(PitchContext);
+  const { updatePitchRating, isLiveMode, userRatings } = useContext(PitchContext);
   const [hasVoted, setHasVoted] = useState(false);
 
   useEffect(() => {
-    const votedPitches = JSON.parse(localStorage.getItem('votedPitches') || '{}');
-    if (votedPitches[pitch._id]) {
-      setHasVoted(true);
-      if (!userRatings[pitch._id]) {
-          setUserRatings(prev => ({...prev, [pitch._id]: votedPitches[pitch._id]}));
-        }
-    } else {
-        setHasVoted(false);
-    }
-  }, [pitch._id, userRatings, setUserRatings]);
+    setHasVoted(!!userRatings[pitch._id]);
+  }, [pitch._id, userRatings]);
 
   const handleRatingSubmit = (rating: number) => {
     updatePitchRating(pitch._id, rating);
-    const votedPitches = JSON.parse(localStorage.getItem('votedPitches') || '{}');
-    votedPitches[pitch._id] = rating;
-    localStorage.setItem('votedPitches', JSON.stringify(votedPitches));
     setHasVoted(true);
   };
 
