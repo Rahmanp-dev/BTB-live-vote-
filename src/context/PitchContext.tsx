@@ -207,11 +207,11 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error("Failed to fetch live state:", error);
       } finally {
-         timeoutId = setTimeout(fetchLiveState, 3000);
+         timeoutId = setTimeout(fetchLiveState, 60000);
       }
     };
     
-    timeoutId = setTimeout(fetchLiveState, 3000);
+    timeoutId = setTimeout(fetchLiveState, 60000);
 
     return () => clearTimeout(timeoutId);
   }, []);
@@ -381,7 +381,17 @@ export function PitchProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/pitches/reset', { method: 'POST' });
       if (res.ok) {
         await fetch('/api/session/reset', { method: 'POST' });
-        await fetchData();
+        // Instead of refetching everything, we just clear the local user ratings
+        // and let the context update naturally on the next poll or action.
+        const newSessionRes = await fetch('/api/session');
+        const newSessionData = await newSessionRes.json();
+        if (newSessionData.success && newSessionData.data) {
+          const newSessionId = newSessionData.data.sessionId;
+          setSessionId(newSessionId);
+          localStorage.removeItem(`votedPitches_${sessionId}`); // remove old session votes
+          setUserRatings({}); // clear ratings in the UI immediately
+        }
+        await fetchData(); // refetch to get empty ratings from server and new session
       } else {
         const { error } = await res.json();
         alert(`Failed to reset ratings: ${error}`);
