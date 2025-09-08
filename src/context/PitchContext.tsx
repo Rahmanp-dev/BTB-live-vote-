@@ -341,8 +341,9 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch('/api/pitches/reset', { method: 'POST' });
       if (res.ok) {
-        await fetchData();
         localStorage.removeItem('votedPitches');
+        setUserRatings({});
+        await fetchData();
       } else {
         const { error } = await res.json();
         alert(`Failed to reset ratings: ${error}`);
