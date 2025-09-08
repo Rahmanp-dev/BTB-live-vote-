@@ -70,23 +70,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [userRatings, setUserRatings] = useState<{ [pitchId: string]: number }>({});
-  const [sessionId, setSessionId] = useState<string | null>(null);
-
-  const getVotedPitchesKey = useCallback(() => {
-    return `votedPitches_${sessionId}`;
-  }, [sessionId]);
-
-  const loadUserRatingsFromStorage = useCallback(() => {
-    if (!sessionId) return;
-    try {
-      const votedPitches = JSON.parse(localStorage.getItem(getVotedPitchesKey()) || '{}');
-      setUserRatings(votedPitches);
-    } catch (e) {
-      console.error("Failed to load or parse user ratings from localStorage", e);
-      setUserRatings({});
-    }
-  }, [sessionId, getVotedPitchesKey]);
-
+  const router = useRouter();
+  const pathname = usePathname();
 
   const addCategory = useCallback(async (name: string, shouldFetchData = true) => {
     try {
@@ -106,11 +91,10 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [pitchesRes, categoriesRes, liveStateRes, sessionRes] = await Promise.all([
+      const [pitchesRes, categoriesRes, liveStateRes] = await Promise.all([
         fetch('/api/pitches'),
         fetch('/api/categories'),
         fetch('/api/livestate'),
-        fetch('/api/session'),
       ]);
 
       if (pitchesRes.ok) {
@@ -157,17 +141,6 @@ export function PitchProvider({ children }: { children: ReactNode }) {
             console.error('Failed to parse live state JSON', e)
         }
       }
-
-      if (sessionRes.ok) {
-        try {
-            const sessionData = await sessionRes.json();
-            if (sessionData.success && sessionData.data) {
-                setSessionId(sessionData.data.sessionId);
-            }
-        } catch (e) {
-            console.error('Failed to parse session JSON', e);
-        }
-      }
     } catch (error) {
       console.error("Failed to fetch initial data:", error);
     } finally {
@@ -180,13 +153,8 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     fetchData();
   }, [fetchData]);
 
+  // Robust polling for live state
   useEffect(() => {
-    loadUserRatingsFromStorage();
-  }, [sessionId, loadUserRatingsFromStorage]);
-
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
     const fetchLiveState = async () => {
       try {
         const res = await fetch('/api/livestate');
@@ -206,14 +174,12 @@ export function PitchProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error("Failed to fetch live state:", error);
-      } finally {
-         timeoutId = setTimeout(fetchLiveState, 60000);
       }
     };
-    
-    timeoutId = setTimeout(fetchLiveState, 60000);
 
-    return () => clearTimeout(timeoutId);
+    const intervalId = setInterval(fetchLiveState, 3000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const updateLiveState = async (state: Partial<LiveState>) => {
@@ -278,15 +244,10 @@ export function PitchProvider({ children }: { children: ReactNode }) {
   };
 
   const updatePitchRating = async (pitchId: string, newRating: number) => {
-    if (!sessionId) return;
     const pitch = pitches.find(p => p._id === pitchId);
     if (!pitch) return;
 
     setUserRatings(prev => ({ ...prev, [pitchId]: newRating }));
-    const votedPitchesKey = getVotedPitchesKey();
-    const votedPitches = JSON.parse(localStorage.getItem(votedPitchesKey) || '{}');
-    votedPitches[pitchId] = newRating;
-    localStorage.setItem(votedPitchesKey, JSON.stringify(votedPitches));
 
     const newRatings = [...pitch.ratings, newRating];
     const newAverage = newRatings.reduce((a, b) => a + b, 0) / newRatings.length;
@@ -380,18 +341,9 @@ export function PitchProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch('/api/pitches/reset', { method: 'POST' });
       if (res.ok) {
-        await fetch('/api/session/reset', { method: 'POST' });
-        // Instead of refetching everything, we just clear the local user ratings
-        // and let the context update naturally on the next poll or action.
-        const newSessionRes = await fetch('/api/session');
-        const newSessionData = await newSessionRes.json();
-        if (newSessionData.success && newSessionData.data) {
-          const newSessionId = newSessionData.data.sessionId;
-          setSessionId(newSessionId);
-          localStorage.removeItem(`votedPitches_${sessionId}`); // remove old session votes
-          setUserRatings({}); // clear ratings in the UI immediately
-        }
-        await fetchData(); // refetch to get empty ratings from server and new session
+        localStorage.removeItem('votedPitches');
+        setUserRatings({});
+        await fetchData();
       } else {
         const { error } = await res.json();
         alert(`Failed to reset ratings: ${error}`);
