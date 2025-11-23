@@ -6,7 +6,7 @@ const UserSchema = new Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, index: true },
   password: { type: String, required: true, select: false },
-  role: { type: String, enum: ['Participant', 'Audience', 'Delegate', 'Sponsor', 'Admin', 'Manager'], required: true },
+  role: { type: String, enum: ['Participant', 'Audience', 'Delegate', 'Sponsor', 'Admin', 'Manager', 'SuperAdmin', 'SponsorAdmin'], required: true },
 
   // Participant-specific fields
   phone: { type: String },

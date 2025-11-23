@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { generateQRCodeBuffer } from './qrcode';
+import { generateTicketPDF } from './pdf';
 
 // Email configuration from environment variables
 const EMAIL_CONFIG = {
@@ -203,6 +204,16 @@ export async function sendRegistrationEmail(data: RegistrationEmailData): Promis
 </html>
         `;
 
+        // Generate PDF Ticket
+        const pdfBuffer = await generateTicketPDF({
+            ticketId: data.ticketId,
+            name: data.name,
+            email: data.email,
+            role: data.role,
+            qrCodeData: data.qrCodeData,
+            price: data.finalPrice
+        });
+
         // Send email
         const mailOptions = {
             from: EMAIL_FROM,
@@ -211,9 +222,9 @@ export async function sendRegistrationEmail(data: RegistrationEmailData): Promis
             html: htmlContent,
             attachments: [
                 {
-                    filename: `ticket-${data.ticketId}.png`,
-                    content: qrCodeBuffer,
-                    contentType: 'image/png'
+                    filename: `Ticket-${data.ticketId}.pdf`,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf'
                 }
             ]
         };

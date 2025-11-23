@@ -10,6 +10,7 @@ const CollegeSchema = new Schema({
     code: { type: String, required: true, unique: true, index: true }, // College-specific coupon code
     discountAmount: { type: Number, required: true },
     earnings: { type: Number, default: 0 },
+    paidAmount: { type: Number, default: 0 }, // Amount already paid to college
     registrations: { type: Number, default: 0 }, // Count of registrations, not array
 }, { timestamps: true });
 

@@ -8,6 +8,7 @@ import InfluencerCoupon from '@/models/InfluencerCoupon';
 import bcrypt from 'bcryptjs';
 import { participantSchema } from '@/lib/validation';
 import { sendRegistrationEmail } from '@/lib/email';
+import { PRICING } from '@/lib/constants';
 
 export async function POST(req: Request) {
     await dbConnect();
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
                 }, { status: 400 });
             }
 
-            ticketPrice = 1800;
+            ticketPrice = PRICING.BASE_TICKET_PRICE;
 
             // Add participant-specific fields
             userData.collegeId = collegeId;
@@ -127,8 +128,8 @@ export async function POST(req: Request) {
                 const college = await College.findById(collegeId);
                 if (college) {
                     // If coupon was used (either college or influencer), college earns 0
-                    // If no coupon, college earns 600
-                    const collegeEarning = appliedCoupon ? 0 : 600;
+                    // If no coupon, college earns commission
+                    const collegeEarning = appliedCoupon ? 0 : PRICING.COLLEGE_COMMISSION;
 
                     college.earnings = (college.earnings || 0) + collegeEarning;
                     college.registrations = (college.registrations || 0) + 1;

@@ -13,6 +13,19 @@ export interface JWTPayload {
     role: string;
 }
 
+export const ROLES = {
+    SUPER_ADMIN: 'SuperAdmin',
+    ADMIN: 'Admin',
+    MANAGER: 'Manager',
+    SPONSOR_ADMIN: 'SponsorAdmin',
+    SPONSOR: 'Sponsor',
+    DELEGATE: 'Delegate',
+    PARTICIPANT: 'Participant',
+    AUDIENCE: 'Audience'
+} as const;
+
+export type Role = typeof ROLES[keyof typeof ROLES];
+
 export interface AuthUser {
     _id: string;
     email: string;
@@ -24,7 +37,7 @@ export interface AuthUser {
  * Generate JWT token for a user
  */
 export function generateToken(payload: JWTPayload): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
 }
 
 /**
@@ -72,10 +85,10 @@ export async function getCurrentUser(request: NextRequest): Promise<AuthUser | n
         if (!user) return null;
 
         return {
-            _id: user._id.toString(),
-            email: user.email,
-            name: user.name,
-            role: user.role
+            _id: (user as any)._id.toString(),
+            email: (user as any).email,
+            name: (user as any).name,
+            role: (user as any).role
         };
     } catch (error) {
         console.error('Error getting current user:', error);
@@ -102,10 +115,10 @@ export async function getServerUser(): Promise<AuthUser | null> {
         if (!user) return null;
 
         return {
-            _id: user._id.toString(),
-            email: user.email,
-            name: user.name,
-            role: user.role
+            _id: (user as any)._id.toString(),
+            email: (user as any).email,
+            name: (user as any).name,
+            role: (user as any).role
         };
     } catch (error) {
         console.error('Error getting server user:', error);
@@ -138,6 +151,7 @@ export async function requireAuth(
     }
 
     if (allowedRoles && !hasRole(user, allowedRoles)) {
+        console.log(`[Auth] 403 Forbidden. User: ${user.email}, Role: ${user.role}, Required: ${allowedRoles.join(', ')}`);
         return NextResponse.json(
             { error: 'Forbidden. You do not have permission to access this resource.' },
             { status: 403 }

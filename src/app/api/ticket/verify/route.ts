@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
         const user = await getCurrentUser(req);
         console.log('Verify API - User:', user); // Debug log
 
-        if (!user || (user.role !== 'Manager' && user.role !== 'Admin')) {
+        if (!user || (user.role !== 'Manager' && user.role !== 'Admin' && user.role !== 'SuperAdmin')) {
             console.log('Verify API - Unauthorized. Role:', user?.role); // Debug log
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }

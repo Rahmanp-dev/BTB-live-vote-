@@ -1,12 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import College from '@/models/College';
 import { exportToCSV, exportToExcel } from '@/lib/export';
 
-export async function GET(req: Request) {
+import { requireAuth, ROLES } from '@/lib/auth';
+
+export async function GET(req: NextRequest) {
     await dbConnect();
     try {
+        const auth = await requireAuth(req, [ROLES.ADMIN, ROLES.SUPER_ADMIN]);
+        if (auth instanceof NextResponse) return auth;
+
         const { searchParams } = new URL(req.url);
         const type = searchParams.get('type'); // 'master' or 'college'
         const collegeId = searchParams.get('collegeId');
@@ -29,6 +34,13 @@ export async function GET(req: Request) {
                 const college = await College.findById(collegeId);
                 filename = `${college?.name || 'college'}-report`;
             }
+        } else if (type === 'settlement') {
+            const colleges = await College.find({}).lean();
+            data = colleges.map((c: any) => ({
+                ...c,
+                pendingAmount: (c.earnings || 0) - (c.paidAmount || 0)
+            }));
+            filename = 'settlement-report';
         } else {
             return NextResponse.json({ message: 'Invalid report type' }, { status: 400 });
         }
@@ -62,7 +74,7 @@ export async function GET(req: Request) {
             });
         } else if (format === 'excel') {
             const buffer = await exportToExcel({ [filename]: processedData });
-            return new NextResponse(buffer, {
+            return new NextResponse(new Blob([buffer as any]), {
                 headers: {
                     'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     'Content-Disposition': `attachment; filename="${filename}.xlsx"`

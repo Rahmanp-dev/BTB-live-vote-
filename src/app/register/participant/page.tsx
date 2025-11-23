@@ -61,7 +61,35 @@ export default function ParticipantRegister() {
     const [finalPrice, setFinalPrice] = useState(1800);
     const [discount, setDiscount] = useState(0);
     const [couponType, setCouponType] = useState<'College' | 'Influencer' | null>(null);
+    const [uploading, setUploading] = useState(false);
     const router = useRouter();
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                setValue('projectLinks', data.url);
+            } else {
+                alert('Upload failed: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('Upload failed');
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const teamType = watch('teamType');
     const selectedCollegeId = watch('collegeId');
@@ -266,8 +294,23 @@ export default function ParticipantRegister() {
                                     <textarea {...register('projectDescription', { required: true, minLength: 60 })} className="w-full bg-secondary border-input text-foreground p-2 rounded border" rows={3} />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-foreground">Project Links (GitHub/Drive)</label>
-                                    <input {...register('projectLinks')} className="w-full bg-secondary border-input text-foreground p-2 rounded border" placeholder="https://..." />
+                                    <label className="block text-sm font-medium text-foreground">Project Links (GitHub/Drive) OR Upload Abstract</label>
+                                    <div className="flex gap-2">
+                                        <input {...register('projectLinks')} className="flex-1 bg-secondary border-input text-foreground p-2 rounded border" placeholder="https://..." />
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                onChange={handleFileUpload}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                                                disabled={uploading}
+                                            />
+                                            <button type="button" className="bg-secondary border border-input text-foreground px-3 py-2 rounded hover:bg-secondary/80">
+                                                {uploading ? 'Uploading...' : 'Upload'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">Supported: PDF, DOC, PNG, JPG. Uploading will auto-fill the link.</p>
                                 </div>
                             </div>
                         </div>

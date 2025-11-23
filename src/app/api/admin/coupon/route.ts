@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server';
+import { requireAuth, ROLES } from '@/lib/auth';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import InfluencerCoupon from '@/models/InfluencerCoupon';
 
 // GET - List all influencer coupons
-export async function GET() {
+export async function GET(req: NextRequest) {
     await dbConnect();
     try {
+        const auth = await requireAuth(req, [ROLES.ADMIN, ROLES.SUPER_ADMIN]);
+        if (auth instanceof NextResponse) return auth;
+
         const coupons = await InfluencerCoupon.find({}).sort({ createdAt: -1 });
         return NextResponse.json({ success: true, data: coupons });
     } catch (error: any) {
@@ -15,9 +19,12 @@ export async function GET() {
 }
 
 // POST - Create new influencer coupon
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     await dbConnect();
     try {
+        const auth = await requireAuth(req, [ROLES.ADMIN, ROLES.SUPER_ADMIN]);
+        if (auth instanceof NextResponse) return auth;
+
         const body = await req.json();
         const { code, discountAmount, usageLimit, expiryDate, createdBy } = body;
 
@@ -47,9 +54,12 @@ export async function POST(req: Request) {
 }
 
 // PATCH - Update coupon (activate/deactivate)
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
     await dbConnect();
     try {
+        const auth = await requireAuth(req, [ROLES.ADMIN, ROLES.SUPER_ADMIN]);
+        if (auth instanceof NextResponse) return auth;
+
         const body = await req.json();
         const { id, isActive } = body;
 

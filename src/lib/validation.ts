@@ -23,6 +23,29 @@ export const participantSchema = z.object({
 
     // Coupon
     couponCode: z.string().optional()
+}).superRefine((data, ctx) => {
+    if (data.teamType !== 'Solo') {
+        if (!data.teamName || data.teamName.length < 2) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Team name is required for teams",
+                path: ["teamName"]
+            });
+        }
+
+        let requiredMembers = 0;
+        if (data.teamType === 'Team of 2') requiredMembers = 1;
+        if (data.teamType === 'Team of 3') requiredMembers = 2;
+        if (data.teamType === 'Team of 4') requiredMembers = 3;
+
+        if (!data.teamMembers || data.teamMembers.length !== requiredMembers) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Please add exactly ${requiredMembers} team members`,
+                path: ["teamMembers"]
+            });
+        }
+    }
 });
 
 // College Creation Schema
